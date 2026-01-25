@@ -2,30 +2,45 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>База Цен</title>
+    <title>Supermarket Catalog</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
 </head>
 <body class="bg-light">
     <div class="container py-5">
-        <h2 class="mb-4">🛒 Каталог Цен</h2>
+        <h2 class="mb-4">🛒 Каталог Цен (EUR)</h2>
+        
         <div class="row">
             <div class="col-md-4">
-                <div class="card p-3 shadow-sm">
-                    <form id="addForm">
+                <div class="card p-3 shadow-sm sticky-top" style="top: 20px;">
+                    <h5 id="formTitle">Добавить товар</h5>
+                    <form id="productForm">
+                        <input type="hidden" id="productId">
+
                         <div class="mb-3">
-                            <input type="text" id="name" class="form-control" placeholder="Товар" required>
+                            <label class="form-label text-muted small">Название</label>
+                            <input type="text" id="name" class="form-control" required>
                         </div>
                         <div class="mb-3">
-                            <input type="text" id="shop_name" class="form-control" placeholder="Магазин" required>
+                            <label class="form-label text-muted small">Магазин</label>
+                            <input type="text" id="shop_name" class="form-control" required>
                         </div>
-                        <div class="mb-3 input-group">
-                            <input type="number" step="0.01" id="price" class="form-control" placeholder="Цена" required>
-                            <span class="input-group-text">₽</span>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">Цена</label>
+                            <div class="input-group">
+                                <span class="input-group-text">€</span>
+                                <input type="number" step="0.01" id="price" class="form-control" required>
+                            </div>
                         </div>
-                        <button type="submit" class="btn btn-success w-100">Добавить</button>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success" id="submitBtn">Добавить</button>
+                            <button type="button" class="btn btn-secondary d-none" id="cancelBtn" onclick="resetForm()">Отмена</button>
+                        </div>
                     </form>
                 </div>
             </div>
+
             <div class="col-md-8">
                 <div id="productList"></div>
             </div>
@@ -33,44 +48,90 @@
     </div>
 
     <script>
-        // Функция загрузки данных
+        // Загрузка товаров
         async function loadProducts() {
             const response = await fetch('/api/products');
             const products = await response.json();
             const list = document.getElementById('productList');
+            
             list.innerHTML = products.map(p => `
                 <div class="card mb-2 p-3 border-0 shadow-sm">
                     <div class="d-flex justify-content-between align-items-center">
-                        <div>
+                        <div class="flex-grow-1">
                             <h5 class="m-0">${p.name}</h5>
-                            <small class="text-muted">${p.shop_name}</small>
+                            <small class="text-muted">${p.shop_name} • ${new Date(p.updated_at).toLocaleDateString()}</small>
                         </div>
-                        <div class="fw-bold fs-5 text-success">${p.price} ₽</div>
+                        <div class="text-end ps-3">
+                            <div class="fw-bold fs-5 text-success mb-1">${p.price.toFixed(2)} €</div>
+                            <button class="btn btn-sm btn-outline-primary" 
+                                onclick="startEdit(${p.id}, '${p.name}', '${p.shop_name}', ${p.price})">
+                                <i class="bi bi-pencil-fill"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             `).join('');
         }
 
-        // Обработка формы
-        document.getElementById('addForm').addEventListener('submit', async (e) => {
+        // Включение режима редактирования
+        window.startEdit = function(id, name, shop, price) {
+            document.getElementById('productId').value = id;
+            document.getElementById('name').value = name;
+            document.getElementById('shop_name').value = shop;
+            document.getElementById('price').value = price;
+
+            // Меняем интерфейс
+            document.getElementById('formTitle').innerText = 'Редактировать товар';
+            document.getElementById('submitBtn').innerText = 'Сохранить изменения';
+            document.getElementById('submitBtn').classList.replace('btn-success', 'btn-primary');
+            document.getElementById('cancelBtn').classList.remove('d-none');
+            
+            // Скролл к форме (на мобильных)
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Сброс формы в исходное состояние
+        window.resetForm = function() {
+            document.getElementById('productForm').reset();
+            document.getElementById('productId').value = '';
+            
+            document.getElementById('formTitle').innerText = 'Добавить товар';
+            document.getElementById('submitBtn').innerText = 'Добавить';
+            document.getElementById('submitBtn').classList.replace('btn-primary', 'btn-success');
+            document.getElementById('cancelBtn').classList.add('d-none');
+        }
+
+        // Обработка отправки формы
+        document.getElementById('productForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            
+            const id = document.getElementById('productId').value;
             const data = {
                 name: document.getElementById('name').value,
                 shop_name: document.getElementById('shop_name').value,
                 price: parseFloat(document.getElementById('price').value)
             };
 
-            await fetch('/api/products', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(data)
-            });
+            if (id) {
+                // Режим обновления (PUT)
+                await fetch(`/api/products/${id}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+            } else {
+                // Режим создания (POST)
+                await fetch('/api/products', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+            }
 
-            e.target.reset();
-            loadProducts(); // Обновить список
+            resetForm();
+            loadProducts();
         });
 
-        // Загрузка при старте
         loadProducts();
     </script>
 </body>
