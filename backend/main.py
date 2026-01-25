@@ -4,12 +4,16 @@ from sqlmodel import Field, Session, SQLModel, create_engine, select
 from typing import List, Optional
 from datetime import datetime
 
-# --- Модель (Валюта обновлена в описании для AI) ---
+# --- Модель ---
 class Product(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(description="Название продукта")
     shop_name: str = Field(description="Магазин")
     price: float = Field(description="Цена в Евро (€)")
+    # Новые необязательные поля
+    weight: Optional[float] = Field(default=None, description="Вес в граммах")
+    calories: Optional[float] = Field(default=None, description="Ккал на 100г")
+    
     updated_at: datetime = Field(default_factory=datetime.now)
 
 # --- БД ---
@@ -44,21 +48,20 @@ def create_product(product: Product, session: Session = Depends(get_session)):
     session.refresh(product)
     return product
 
-# --- НОВОЕ: Эндпоинт для редактирования ---
 @app.put("/products/{product_id}", response_model=Product)
 def update_product(product_id: int, product_data: Product, session: Session = Depends(get_session)):
-    # 1. Ищем товар в базе
     db_product = session.get(Product, product_id)
     if not db_product:
         raise HTTPException(status_code=404, detail="Товар не найден")
     
-    # 2. Обновляем поля
+    # Обновляем все поля
     db_product.name = product_data.name
     db_product.shop_name = product_data.shop_name
     db_product.price = product_data.price
-    db_product.updated_at = datetime.now() # Обновляем дату изменения
+    db_product.weight = product_data.weight     # Обновляем вес
+    db_product.calories = product_data.calories # Обновляем калории
+    db_product.updated_at = datetime.now()
     
-    # 3. Сохраняем
     session.add(db_product)
     session.commit()
     session.refresh(db_product)

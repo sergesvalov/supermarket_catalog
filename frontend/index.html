@@ -32,6 +32,17 @@
                                 <input type="number" step="0.01" id="price" class="form-control" required>
                             </div>
                         </div>
+
+                        <div class="row mb-3">
+                            <div class="col">
+                                <label class="form-label text-muted small">Вес (г)</label>
+                                <input type="number" id="weight" class="form-control" placeholder="опц.">
+                            </div>
+                            <div class="col">
+                                <label class="form-label text-muted small">Ккал</label>
+                                <input type="number" id="calories" class="form-control" placeholder="опц.">
+                            </div>
+                        </div>
                         
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-success" id="submitBtn">Добавить</button>
@@ -48,85 +59,86 @@
     </div>
 
     <script>
-        // Загрузка товаров
         async function loadProducts() {
             const response = await fetch('/api/products');
             const products = await response.json();
             const list = document.getElementById('productList');
             
-            list.innerHTML = products.map(p => `
+            list.innerHTML = products.map(p => {
+                // Формируем бейджики, если есть данные
+                let badges = '';
+                if (p.weight) badges += `<span class="badge bg-light text-dark border me-1">⚖️ ${p.weight}г</span>`;
+                if (p.calories) badges += `<span class="badge bg-light text-dark border">🔥 ${p.calories} ккал</span>`;
+
+                return `
                 <div class="card mb-2 p-3 border-0 shadow-sm">
                     <div class="d-flex justify-content-between align-items-center">
                         <div class="flex-grow-1">
                             <h5 class="m-0">${p.name}</h5>
+                            <div class="mb-1">${badges}</div>
                             <small class="text-muted">${p.shop_name} • ${new Date(p.updated_at).toLocaleDateString()}</small>
                         </div>
                         <div class="text-end ps-3">
                             <div class="fw-bold fs-5 text-success mb-1">${p.price.toFixed(2)} €</div>
                             <button class="btn btn-sm btn-outline-primary" 
-                                onclick="startEdit(${p.id}, '${p.name}', '${p.shop_name}', ${p.price})">
+                                onclick="startEdit(${p.id}, '${p.name}', '${p.shop_name}', ${p.price}, ${p.weight || 'null'}, ${p.calories || 'null'})">
                                 <i class="bi bi-pencil-fill"></i>
                             </button>
                         </div>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
         }
 
-        // Включение режима редактирования
-        window.startEdit = function(id, name, shop, price) {
+        window.startEdit = function(id, name, shop, price, weight, calories) {
             document.getElementById('productId').value = id;
             document.getElementById('name').value = name;
             document.getElementById('shop_name').value = shop;
             document.getElementById('price').value = price;
+            // Заполняем новые поля (или пустоту)
+            document.getElementById('weight').value = weight || '';
+            document.getElementById('calories').value = calories || '';
 
-            // Меняем интерфейс
-            document.getElementById('formTitle').innerText = 'Редактировать товар';
-            document.getElementById('submitBtn').innerText = 'Сохранить изменения';
+            document.getElementById('formTitle').innerText = 'Редактировать';
+            document.getElementById('submitBtn').innerText = 'Сохранить';
             document.getElementById('submitBtn').classList.replace('btn-success', 'btn-primary');
             document.getElementById('cancelBtn').classList.remove('d-none');
-            
-            // Скролл к форме (на мобильных)
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // Сброс формы в исходное состояние
         window.resetForm = function() {
             document.getElementById('productForm').reset();
             document.getElementById('productId').value = '';
-            
             document.getElementById('formTitle').innerText = 'Добавить товар';
             document.getElementById('submitBtn').innerText = 'Добавить';
             document.getElementById('submitBtn').classList.replace('btn-primary', 'btn-success');
             document.getElementById('cancelBtn').classList.add('d-none');
         }
 
-        // Обработка отправки формы
         document.getElementById('productForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
             const id = document.getElementById('productId').value;
+            
+            // Собираем данные. Если поле пустое, отправляем null
+            const weightVal = document.getElementById('weight').value;
+            const calsVal = document.getElementById('calories').value;
+
             const data = {
                 name: document.getElementById('name').value,
                 shop_name: document.getElementById('shop_name').value,
-                price: parseFloat(document.getElementById('price').value)
+                price: parseFloat(document.getElementById('price').value),
+                weight: weightVal ? parseFloat(weightVal) : null,
+                calories: calsVal ? parseFloat(calsVal) : null
             };
 
-            if (id) {
-                // Режим обновления (PUT)
-                await fetch(`/api/products/${id}`, {
-                    method: 'PUT',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(data)
-                });
-            } else {
-                // Режим создания (POST)
-                await fetch('/api/products', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(data)
-                });
-            }
+            const url = id ? `/api/products/${id}` : '/api/products';
+            const method = id ? 'PUT' : 'POST';
+
+            await fetch(url, {
+                method: method,
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
 
             resetForm();
             loadProducts();
