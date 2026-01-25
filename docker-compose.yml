@@ -1,0 +1,20 @@
+services:
+  backend:
+    build: ./backend
+    container_name: catalog-backend
+    volumes:
+      - ./backend_data:/app/data
+    restart: always
+
+  nginx:
+    image: nginx:latest
+    container_name: catalog-nginx
+    ports:
+      # БЫЛО: - "80:80"
+      # СТАЛО: (Слева — ваш порт, Справа — порт внутри контейнера)
+      - "8040:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - ./frontend:/usr/share/nginx/html
+    depends_on:
+      - backend
