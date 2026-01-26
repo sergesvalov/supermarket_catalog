@@ -64,6 +64,8 @@ async function loadData() {
         
         if (currentListId) {
             refreshActiveList();
+            // Если мы уже внутри списка, нужно обновить и левую колонку выбора
+            renderProductPicker(els.productSearchInput.value); 
         }
     } catch (e) { 
         console.error("Ошибка загрузки:", e); 
@@ -113,7 +115,7 @@ if (els.newListForm) {
     });
 }
 
-// 2. Клик по списку
+// 2. Клик по списку (Открытие)
 if (els.listsContainer) {
     els.listsContainer.addEventListener('click', async (e) => {
         const delBtn = e.target.closest('.btn-delete-list');
@@ -137,8 +139,13 @@ async function openShoppingList(id) {
     currentListId = id;
     els.listsOverview.classList.add('d-none');
     els.activeListView.classList.remove('d-none');
+    
+    // Сброс фильтра
     els.productSearchInput.value = '';
-    els.searchResults.innerHTML = '';
+    
+    // === ВАЖНО: Сразу рендерим все товары слева ===
+    renderProductPicker();
+    
     await refreshActiveList();
 }
 
@@ -148,13 +155,15 @@ async function refreshActiveList() {
         const list = await api.lists.getOne(currentListId);
         els.activeListTitle.innerText = list.name;
         
-        if (list.items.length === 0) {
-            els.activeListItems.innerHTML = '<li class="list-group-item text-center text-muted py-4">Список пуст. Добавьте товары через поиск слева.</li>';
+        // Защита от пустого списка items
+        const items = list.items || [];
+
+        if (items.length === 0) {
+            els.activeListItems.innerHTML = '<li class="list-group-item text-center text-muted py-4">Список пуст. Выберите товары слева.</li>';
             els.totalSum.innerText = '0.00 €';
         } else {
-            els.activeListItems.innerHTML = list.items.map(ShoppingListItemRow).join('');
-            const sum = list.items.reduce((acc, item) => {
-                // Защита если товар удален
+            els.activeListItems.innerHTML = items.map(ShoppingListItemRow).join('');
+            const sum = items.reduce((acc, item) => {
                 if (!item.product) return acc;
                 return acc + (item.product.price * item.quantity);
             }, 0);
@@ -162,7 +171,6 @@ async function refreshActiveList() {
         }
     } catch(e) {
         console.error("Ошибка загрузки списка:", e);
-        // ВАЖНО: Мы больше не закрываем список автоматически, а показываем ошибку
         els.activeListItems.innerHTML = `<div class="alert alert-danger">Ошибка: ${e.message}</div>`;
     }
 }
@@ -176,24 +184,31 @@ function backToLists() {
 
 if(els.backToListsBtn) els.backToListsBtn.addEventListener('click', backToLists);
 
-// 3. Поиск товаров
+// 3. Умный поиск (ФИЛЬТРАЦИЯ)
 if(els.productSearchInput) {
     els.productSearchInput.addEventListener('input', (e) => {
-        const query = e.target.value.toLowerCase().trim();
-        if (query.length < 2) {
-            els.searchResults.innerHTML = '';
-            return;
-        }
-        
-        const filtered = allProductsCache.filter(p => p.name.toLowerCase().includes(query));
-        filtered.sort((a, b) => a.price - b.price);
-
-        if (filtered.length === 0) {
-            els.searchResults.innerHTML = '<div class="list-group-item text-muted">Ничего не найдено</div>';
-        } else {
-            els.searchResults.innerHTML = filtered.map(ProductSearchItem).join('');
-        }
+        // Просто перерисовываем левую колонку с новым фильтром
+        renderProductPicker(e.target.value);
     });
+}
+
+// Хелпер для отрисовки выбора товаров
+function renderProductPicker(query = '') {
+    if (!els.searchResults) return;
+
+    query = query.toLowerCase().trim();
+    
+    // Фильтруем кеш (если query пусто, вернется весь список)
+    let filtered = allProductsCache.filter(p => p.name.toLowerCase().includes(query));
+    
+    // Сортируем: сначала дешевые
+    filtered.sort((a, b) => a.price - b.price);
+
+    if (filtered.length === 0) {
+        els.searchResults.innerHTML = '<div class="list-group-item text-muted">Ничего не найдено</div>';
+    } else {
+        els.searchResults.innerHTML = filtered.map(ProductSearchItem).join('');
+    }
 }
 
 // 4. Добавление в список
@@ -206,8 +221,8 @@ if(els.searchResults) {
 
         try {
             await api.lists.addItem(currentListId, btn.dataset.product, 1);
-            els.productSearchInput.value = '';
-            els.searchResults.innerHTML = '';
+            // Не очищаем поиск, чтобы можно было добавить еще товаров
+            // els.productSearchInput.value = ''; 
             await refreshActiveList();
         } catch (err) {
             alert("Ошибка добавления: " + err.message);
@@ -215,7 +230,7 @@ if(els.searchResults) {
     });
 }
 
-// 5. Управление элементами списка
+// 5. Управление элементами списка (Чекбокс, Удаление)
 if(els.activeListItems) {
     els.activeListItems.addEventListener('click', async (e) => {
         if (e.target.classList.contains('check-item')) {
