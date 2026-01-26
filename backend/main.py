@@ -1,6 +1,6 @@
 import os
 import requests
-import html  # <--- ЗАЩИТА ОТ ИНЪЕКЦИЙ
+import html
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
 from sqlmodel import Field, Session, SQLModel, create_engine, select, Relationship
 from typing import List, Optional
@@ -58,7 +58,6 @@ class ShoppingList(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.now)
     items: List[ShoppingListItem] = Relationship(sa_relationship_kwargs={"cascade": "all, delete"})
 
-# --- TELEGRAM ---
 class TelegramConfig(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     bot_token: str = Field(description="Токен бота")
@@ -67,6 +66,14 @@ class TelegramUser(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
     chat_id: str
+
+# --- НОВОЕ: Модель для экспорта каталога (без лишних ID) ---
+class CatalogExport(SQLModel):
+    product: str
+    price: float
+    currency: str = "EUR"
+    shop: Optional[str] = None
+    updated_at: datetime
 
 # ===========================
 # 2. НАСТРОЙКА БД
@@ -94,10 +101,8 @@ def on_startup():
 # ===========================
 
 def send_telegram_message_task(bot_token: str, chat_id: str, text: str):
-    """Отправка сообщения в фоне, чтобы не блокировать основной поток"""
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     try:
-        # timeout нужен, чтобы процесс не висел вечно при проблемах с сетью
         requests.post(url, json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"}, timeout=10)
     except Exception as e:
         print(f"Ошибка отправки в Telegram ({chat_id}): {e}")
@@ -105,6 +110,29 @@ def send_telegram_message_task(bot_token: str, chat_id: str, text: str):
 # ===========================
 # 4. ЭНДПОИНТЫ
 # ===========================
+
+# --- НОВОЕ: Публичный каталог цен ---
+@app.get("/catalog", response_model=List[CatalogExport])
+def get_public_catalog(session: Session = Depends(get_session)):
+    """
+    Возвращает упрощенный список всех товаров с актуальными ценами.
+    Удобно для интеграции с внешними сервисами.
+    """
+    # Загружаем товары вместе с магазинами
+    query = select(Product).options(selectinload(Product.shop))
+    products = session.exec(query).all()
+    
+    # Преобразуем в упрощенный формат
+    result = []
+    for p in products:
+        result.append(CatalogExport(
+            product=p.name,
+            price=p.price,
+            shop=p.shop.name if p.shop else None,
+            updated_at=p.updated_at
+        ))
+    
+    return result
 
 # --- Магазины ---
 @app.get("/shops", response_model=List[Shop])
@@ -146,7 +174,6 @@ def create_product(product: Product, session: Session = Depends(get_session)):
     session.commit()
     session.refresh(product)
     
-    # История
     history_entry = PriceHistory(product_id=product.id, price=product.price)
     session.add(history_entry)
     session.commit()
@@ -261,16 +288,14 @@ def get_telegram_config(session: Session = Depends(get_session)):
 
 @app.post("/telegram/config", response_model=TelegramConfig)
 def save_telegram_config(config: TelegramConfig, session: Session = Depends(get_session)):
-    # 1. Валидация токена перед сохранением
     try:
         test_url = f"https://api.telegram.org/bot{config.bot_token}/getMe"
         resp = requests.get(test_url, timeout=5)
         if not resp.ok:
-            raise HTTPException(status_code=400, detail="Токен невалиден (Telegram API вернул ошибку)")
+            raise HTTPException(status_code=400, detail="Токен невалиден")
     except requests.RequestException:
-        raise HTTPException(status_code=400, detail="Не удалось проверить токен (Ошибка сети)")
+        raise HTTPException(status_code=400, detail="Ошибка сети при проверке токена")
 
-    # 2. Сохранение
     existing = session.exec(select(TelegramConfig)).first()
     if existing:
         existing.bot_token = config.bot_token
@@ -306,7 +331,7 @@ def delete_telegram_user(user_id: int, session: Session = Depends(get_session)):
 @app.post("/telegram/send/{list_id}")
 def send_list_to_telegram(
     list_id: int, 
-    background_tasks: BackgroundTasks,  # <--- Используем BackgroundTasks
+    background_tasks: BackgroundTasks, 
     session: Session = Depends(get_session)
 ):
     config = session.exec(select(TelegramConfig)).first()
@@ -324,7 +349,6 @@ def send_list_to_telegram(
     if not shopping_list:
         raise HTTPException(status_code=404, detail="Список не найден")
 
-    # Формируем текст (Экранируем спецсимволы!)
     safe_list_name = html.escape(shopping_list.name)
     lines = [f"🛒 <b>{safe_list_name}</b>\n"]
     total = 0.0
@@ -337,14 +361,12 @@ def send_list_to_telegram(
         
         safe_prod_name = html.escape(p.name)
         shop_part = f"({html.escape(p.shop.name)})" if p.shop else ""
-        
         lines.append(f"{status} <b>{safe_prod_name}</b> {shop_part}")
         lines.append(f"   {item.quantity} шт x {p.price:.2f} = {sum_item:.2f} €")
     
     lines.append(f"\n💰 <b>Итого: {total:.2f} €</b>")
     message_text = "\n".join(lines)
 
-    # Запускаем отправку в фоне
     for user in users:
         background_tasks.add_task(send_telegram_message_task, config.bot_token, user.chat_id, message_text)
 
