@@ -4,33 +4,28 @@ from sqlmodel import Field, Session, SQLModel, create_engine, select, Relationsh
 from typing import List, Optional
 from datetime import datetime
 from pydantic import field_validator
-# --- ОБЯЗАТЕЛЬНЫЙ ИМПОРТ ДЛЯ РАБОТЫ СВЯЗЕЙ ---
 from sqlalchemy.orm import selectinload
 
-# --- 1. Модель Магазина ---
+# ===========================
+# 1. МОДЕЛИ ДАННЫХ
+# ===========================
+
 class Shop(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True, unique=True, description="Название магазина")
 
-# --- 2. Модель Продукта ---
 class Product(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
     price: float
-    
-    # Характеристики
-    weight: Optional[float] = Field(default=None, description="Вес в граммах")
-    calories: Optional[float] = Field(default=None, description="Ккал на 100г")
-    quantity: Optional[int] = Field(default=None, description="Штук в упаковке")
-    
+    weight: Optional[float] = Field(default=None)
+    calories: Optional[float] = Field(default=None)
+    quantity: Optional[int] = Field(default=None)
     updated_at: datetime = Field(default_factory=datetime.now)
 
-    # Связи
     shop_id: Optional[int] = Field(default=None, foreign_key="shop.id")
-    # Опционально: магазин может быть не привязан, или удален
     shop: Optional[Shop] = Relationship()
 
-    # Валидация
     @field_validator('price', 'weight', 'calories', 'quantity')
     @classmethod
     def check_positive(cls, v):
@@ -38,7 +33,29 @@ class Product(SQLModel, table=True):
             raise ValueError('Значение не может быть отрицательным')
         return v
 
-# --- БД ---
+# --- НОВОЕ: Списки покупок ---
+
+class ShoppingList(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    created_at: datetime = Field(default_factory=datetime.now)
+    
+    # Каскадное удаление: удалили список -> удалились пункты
+    items: List["ShoppingListItem"] = Relationship(back_populates="shopping_list", sa_relationship_kwargs={"cascade": "all, delete"})
+
+class ShoppingListItem(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    shopping_list_id: int = Field(foreign_key="shoppinglist.id")
+    product_id: int = Field(foreign_key="product.id")
+    quantity: int = Field(default=1)
+    is_bought: bool = Field(default=False)
+
+    shopping_list: ShoppingList = Relationship(back_populates="items")
+    product: Product = Relationship()
+
+# ===========================
+# 2. НАСТРОЙКА БД
+# ===========================
 os.makedirs("data", exist_ok=True)
 sqlite_file_name = "data/database.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
@@ -58,9 +75,10 @@ def on_startup():
     create_db_and_tables()
 
 # ===========================
-# Эндпоинты: МАГАЗИНЫ
+# 3. API ЭНДПОИНТЫ
 # ===========================
 
+# --- Магазины ---
 @app.get("/shops", response_model=List[Shop])
 def get_shops(session: Session = Depends(get_session)):
     return session.exec(select(Shop).order_by(Shop.name)).all()
@@ -69,7 +87,7 @@ def get_shops(session: Session = Depends(get_session)):
 def create_shop(shop: Shop, session: Session = Depends(get_session)):
     existing = session.exec(select(Shop).where(Shop.name == shop.name)).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Магазин с таким именем уже есть")
+        raise HTTPException(status_code=400, detail="Магазин уже существует")
     session.add(shop)
     session.commit()
     session.refresh(shop)
@@ -84,14 +102,9 @@ def delete_shop(shop_id: int, session: Session = Depends(get_session)):
     session.commit()
     return {"ok": True}
 
-# ===========================
-# Эндпоинты: ТОВАРЫ
-# ===========================
-
+# --- Товары ---
 @app.get("/products", response_model=List[Product])
 def get_products(session: Session = Depends(get_session)):
-    # ВАЖНО: .options(selectinload(Product.shop)) заставляет базу данных 
-    # сразу отдать информацию о магазине вместе с товаром.
     query = select(Product).options(selectinload(Product.shop)).order_by(Product.updated_at.desc())
     return session.exec(query).all()
 
@@ -100,11 +113,8 @@ def create_product(product: Product, session: Session = Depends(get_session)):
     product.updated_at = datetime.now()
     session.add(product)
     session.commit()
-    # refresh загружает ID и дефолтные поля
-    session.refresh(product) 
-    # Если магазин задан, подгружаем его объект для корректного ответа API
-    if product.shop_id:
-        session.refresh(product, ["shop"])
+    session.refresh(product)
+    if product.shop_id: session.refresh(product, ["shop"])
     return product
 
 @app.put("/products/{product_id}", response_model=Product)
@@ -113,20 +123,85 @@ def update_product(product_id: int, product_data: Product, session: Session = De
     if not db_product:
         raise HTTPException(status_code=404, detail="Товар не найден")
     
-    db_product.name = product_data.name
-    db_product.price = product_data.price
-    db_product.weight = product_data.weight
-    db_product.calories = product_data.calories
-    db_product.quantity = product_data.quantity
-    db_product.shop_id = product_data.shop_id
-    db_product.updated_at = datetime.now()
+    for key, value in product_data.dict(exclude_unset=True).items():
+        if key != 'id': setattr(db_product, key, value)
     
+    db_product.updated_at = datetime.now()
     session.add(db_product)
     session.commit()
     session.refresh(db_product)
-    
-    # Подгружаем магазин, чтобы фронтенд сразу увидел изменение названия
-    if db_product.shop_id:
-        session.refresh(db_product, ["shop"])
-        
+    if db_product.shop_id: session.refresh(db_product, ["shop"])
     return db_product
+
+# --- Списки покупок ---
+@app.get("/lists", response_model=List[ShoppingList])
+def get_lists(session: Session = Depends(get_session)):
+    return session.exec(select(ShoppingList).order_by(ShoppingList.created_at.desc())).all()
+
+@app.get("/lists/{list_id}", response_model=ShoppingList)
+def get_list_details(list_id: int, session: Session = Depends(get_session)):
+    # Глубокая загрузка: Список -> Пункты -> Товар -> Магазин
+    query = select(ShoppingList).where(ShoppingList.id == list_id).options(
+        selectinload(ShoppingList.items).selectinload(ShoppingListItem.product).selectinload(Product.shop)
+    )
+    obj = session.exec(query).first()
+    if not obj:
+        raise HTTPException(status_code=404, detail="Список не найден")
+    return obj
+
+@app.post("/lists", response_model=ShoppingList)
+def create_list(shopping_list: ShoppingList, session: Session = Depends(get_session)):
+    shopping_list.created_at = datetime.now()
+    session.add(shopping_list)
+    session.commit()
+    session.refresh(shopping_list)
+    return shopping_list
+
+@app.delete("/lists/{list_id}")
+def delete_list(list_id: int, session: Session = Depends(get_session)):
+    obj = session.get(ShoppingList, list_id)
+    if not obj:
+        raise HTTPException(status_code=404, detail="Список не найден")
+    session.delete(obj)
+    session.commit()
+    return {"ok": True}
+
+# --- Пункты списка ---
+@app.post("/lists/items", response_model=ShoppingListItem)
+def add_item_to_list(item: ShoppingListItem, session: Session = Depends(get_session)):
+    # Если товар уже в списке — увеличиваем кол-во
+    existing = session.exec(
+        select(ShoppingListItem)
+        .where(ShoppingListItem.shopping_list_id == item.shopping_list_id)
+        .where(ShoppingListItem.product_id == item.product_id)
+    ).first()
+
+    if existing:
+        existing.quantity += item.quantity
+        session.add(existing)
+        session.commit()
+        session.refresh(existing)
+        return existing
+    
+    session.add(item)
+    session.commit()
+    session.refresh(item)
+    return item
+
+@app.patch("/lists/items/{item_id}")
+def update_item_status(item_id: int, is_bought: bool, session: Session = Depends(get_session)):
+    item = session.get(ShoppingListItem, item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Позиция не найдена")
+    item.is_bought = is_bought
+    session.add(item)
+    session.commit()
+    return {"ok": True}
+
+@app.delete("/lists/items/{item_id}")
+def remove_item(item_id: int, session: Session = Depends(get_session)):
+    item = session.get(ShoppingListItem, item_id)
+    if item:
+        session.delete(item)
+        session.commit()
+    return {"ok": True}

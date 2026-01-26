@@ -6,6 +6,10 @@
     <title>Supermarket Catalog</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        .list-card:hover { transform: translateY(-2px); transition: 0.2s; border-color: #0d6efd; }
+        .cursor-pointer { cursor: pointer; }
+    </style>
 </head>
 <body class="bg-light">
     <div class="container py-5">
@@ -13,14 +17,18 @@
 
         <ul class="nav nav-pills mb-4" id="pills-tab" role="tablist">
             <li class="nav-item">
-                <button class="nav-link active" id="pills-products-tab" data-bs-toggle="pill" data-bs-target="#pills-products" type="button">📦 Товары</button>
+                <button class="nav-link active" id="pills-products-tab" data-bs-toggle="pill" data-bs-target="#pills-products">📦 Товары</button>
             </li>
             <li class="nav-item">
-                <button class="nav-link" id="pills-shops-tab" data-bs-toggle="pill" data-bs-target="#pills-shops" type="button">🏪 Магазины</button>
+                <button class="nav-link" id="pills-lists-tab" data-bs-toggle="pill" data-bs-target="#pills-lists">📝 Списки покупок</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" id="pills-shops-tab" data-bs-toggle="pill" data-bs-target="#pills-shops">🏪 Магазины</button>
             </li>
         </ul>
 
         <div class="tab-content" id="pills-tabContent">
+            
             <div class="tab-pane fade show active" id="pills-products">
                 <div class="row">
                     <div class="col-md-4">
@@ -37,7 +45,6 @@
                                     <select id="shopSelect" class="form-select">
                                         <option value="">-- Не выбрано --</option>
                                     </select>
-                                    <div class="form-text text-muted small">Нет в списке? Добавьте во вкладке Магазины</div>
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label text-muted small">Цена (€)</label>
@@ -70,6 +77,52 @@
                 </div>
             </div>
 
+            <div class="tab-pane fade" id="pills-lists">
+                
+                <div id="listsOverview">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <form id="newListForm" class="d-flex gap-2">
+                                <input type="text" id="newListName" class="form-control" placeholder="Название списка (напр. 'На шашлыки')" required>
+                                <button type="submit" class="btn btn-primary text-nowrap">Создать список</button>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="row" id="listsContainer"></div>
+                </div>
+
+                <div id="activeListView" class="d-none">
+                    <div class="d-flex align-items-center gap-3 mb-4">
+                        <button class="btn btn-outline-secondary" id="backToListsBtn">
+                            <i class="bi bi-arrow-left"></i> Назад
+                        </button>
+                        <h3 class="m-0" id="activeListTitle">Список</h3>
+                        <div class="ms-auto fs-4 fw-bold text-primary" id="totalSum">0.00 €</div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-5">
+                            <div class="card p-3 shadow-sm border-0 mb-3">
+                                <h5>🔍 Добавить товар</h5>
+                                <input type="text" id="productSearchInput" class="form-control mb-2" placeholder="Введите название (напр. Молоко)...">
+                                <div id="searchResults" class="list-group">
+                                    </div>
+                                <small class="text-muted mt-2 d-block">Показываются варианты изо всех магазинов</small>
+                            </div>
+                        </div>
+
+                        <div class="col-md-7">
+                            <div class="card p-3 shadow-sm border-0">
+                                <h5>📝 Что купить</h5>
+                                <ul class="list-group list-group-flush" id="activeListItems">
+                                    </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
             <div class="tab-pane fade" id="pills-shops">
                 <div class="row">
                     <div class="col-md-5">
@@ -84,9 +137,9 @@
                     </div>
                 </div>
             </div>
+
         </div>
     </div>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script type="module" src="js/app.js"></script>
 </body>
