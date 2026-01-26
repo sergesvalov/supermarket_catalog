@@ -4,6 +4,7 @@ from sqlmodel import Field, Session, SQLModel, create_engine, select, Relationsh
 from typing import List, Optional
 from datetime import datetime
 from pydantic import field_validator
+# --- ОБЯЗАТЕЛЬНЫЙ ИМПОРТ ДЛЯ РАБОТЫ СВЯЗЕЙ ---
 from sqlalchemy.orm import selectinload
 
 # --- 1. Модель Магазина ---
@@ -17,18 +18,19 @@ class Product(SQLModel, table=True):
     name: str
     price: float
     
-    # Характеристики (Опциональные)
+    # Характеристики
     weight: Optional[float] = Field(default=None, description="Вес в граммах")
     calories: Optional[float] = Field(default=None, description="Ккал на 100г")
-    quantity: Optional[int] = Field(default=None, description="Количество штук в упаковке")
+    quantity: Optional[int] = Field(default=None, description="Штук в упаковке")
     
     updated_at: datetime = Field(default_factory=datetime.now)
 
-    # Связь с магазином
+    # Связи
     shop_id: Optional[int] = Field(default=None, foreign_key="shop.id")
+    # Опционально: магазин может быть не привязан, или удален
     shop: Optional[Shop] = Relationship()
 
-    # Валидация: запрет отрицательных чисел
+    # Валидация
     @field_validator('price', 'weight', 'calories', 'quantity')
     @classmethod
     def check_positive(cls, v):
@@ -36,11 +38,10 @@ class Product(SQLModel, table=True):
             raise ValueError('Значение не может быть отрицательным')
         return v
 
-# --- Настройка БД ---
+# --- БД ---
 os.makedirs("data", exist_ok=True)
 sqlite_file_name = "data/database.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
-# check_same_thread=False нужен для SQLite при работе с FastAPI
 engine = create_engine(sqlite_url, connect_args={"check_same_thread": False})
 
 def create_db_and_tables():
@@ -50,7 +51,6 @@ def get_session():
     with Session(engine) as session:
         yield session
 
-# --- Приложение ---
 app = FastAPI(root_path="/api")
 
 @app.on_event("startup")
@@ -90,7 +90,8 @@ def delete_shop(shop_id: int, session: Session = Depends(get_session)):
 
 @app.get("/products", response_model=List[Product])
 def get_products(session: Session = Depends(get_session)):
-    # selectinload нужен, чтобы загрузить данные из связанной таблицы Shop
+    # ВАЖНО: .options(selectinload(Product.shop)) заставляет базу данных 
+    # сразу отдать информацию о магазине вместе с товаром.
     query = select(Product).options(selectinload(Product.shop)).order_by(Product.updated_at.desc())
     return session.exec(query).all()
 
@@ -99,7 +100,11 @@ def create_product(product: Product, session: Session = Depends(get_session)):
     product.updated_at = datetime.now()
     session.add(product)
     session.commit()
-    session.refresh(product)
+    # refresh загружает ID и дефолтные поля
+    session.refresh(product) 
+    # Если магазин задан, подгружаем его объект для корректного ответа API
+    if product.shop_id:
+        session.refresh(product, ["shop"])
     return product
 
 @app.put("/products/{product_id}", response_model=Product)
@@ -108,7 +113,6 @@ def update_product(product_id: int, product_data: Product, session: Session = De
     if not db_product:
         raise HTTPException(status_code=404, detail="Товар не найден")
     
-    # Обновляем все поля
     db_product.name = product_data.name
     db_product.price = product_data.price
     db_product.weight = product_data.weight
@@ -120,4 +124,9 @@ def update_product(product_id: int, product_data: Product, session: Session = De
     session.add(db_product)
     session.commit()
     session.refresh(db_product)
+    
+    # Подгружаем магазин, чтобы фронтенд сразу увидел изменение названия
+    if db_product.shop_id:
+        session.refresh(db_product, ["shop"])
+        
     return db_product
