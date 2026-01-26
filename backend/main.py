@@ -33,15 +33,7 @@ class Product(SQLModel, table=True):
             raise ValueError('Значение не может быть отрицательным')
         return v
 
-# --- НОВОЕ: Списки покупок ---
-
-class ShoppingList(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    name: str
-    created_at: datetime = Field(default_factory=datetime.now)
-    
-    # Каскадное удаление: удалили список -> удалились пункты
-    items: List["ShoppingListItem"] = Relationship(back_populates="shopping_list", sa_relationship_kwargs={"cascade": "all, delete"})
+# --- СПИСКИ ПОКУПОК (Исправленные) ---
 
 class ShoppingListItem(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -50,8 +42,17 @@ class ShoppingListItem(SQLModel, table=True):
     quantity: int = Field(default=1)
     is_bought: bool = Field(default=False)
 
-    shopping_list: ShoppingList = Relationship(back_populates="items")
+    # ВАЖНО: Мы убрали связь обратно на ShoppingList, чтобы не было рекурсии в JSON
     product: Product = Relationship()
+
+class ShoppingList(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    created_at: datetime = Field(default_factory=datetime.now)
+    
+    # Связь осталась здесь (Список -> Пункты)
+    items: List["ShoppingListItem"] = Relationship(sa_relationship_kwargs={"cascade": "all, delete"})
+
 
 # ===========================
 # 2. НАСТРОЙКА БД
@@ -75,7 +76,7 @@ def on_startup():
     create_db_and_tables()
 
 # ===========================
-# 3. API ЭНДПОИНТЫ
+# 3. ЭНДПОИНТЫ
 # ===========================
 
 # --- Магазины ---
@@ -140,8 +141,8 @@ def get_lists(session: Session = Depends(get_session)):
 
 @app.get("/lists/{list_id}", response_model=ShoppingList)
 def get_list_details(list_id: int, session: Session = Depends(get_session)):
-    # Глубокая загрузка: Список -> Пункты -> Товар -> Магазин
     query = select(ShoppingList).where(ShoppingList.id == list_id).options(
+        # Загружаем Пункты -> Продукты -> Магазины
         selectinload(ShoppingList.items).selectinload(ShoppingListItem.product).selectinload(Product.shop)
     )
     obj = session.exec(query).first()
@@ -169,7 +170,7 @@ def delete_list(list_id: int, session: Session = Depends(get_session)):
 # --- Пункты списка ---
 @app.post("/lists/items", response_model=ShoppingListItem)
 def add_item_to_list(item: ShoppingListItem, session: Session = Depends(get_session)):
-    # Если товар уже в списке — увеличиваем кол-во
+    # Проверка на дубликат
     existing = session.exec(
         select(ShoppingListItem)
         .where(ShoppingListItem.shopping_list_id == item.shopping_list_id)

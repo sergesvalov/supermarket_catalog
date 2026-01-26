@@ -56,7 +56,6 @@ async function loadData() {
             api.lists.getAll()
         ]);
         
-        console.log("Данные получены:", { products, shops, lists });
         allProductsCache = products; 
         
         renderProducts(products);
@@ -68,7 +67,6 @@ async function loadData() {
         }
     } catch (e) { 
         console.error("Ошибка загрузки:", e); 
-        // Не показываем alert при старте, чтобы не спамить, но пишем в консоль
     }
 }
 
@@ -99,7 +97,7 @@ function renderLists(lists) {
 // 1. Создание списка
 if (els.newListForm) {
     els.newListForm.addEventListener('submit', async (e) => {
-        e.preventDefault(); // ОСТАНОВИТЬ ПЕРЕЗАГРУЗКУ
+        e.preventDefault(); 
         const input = document.getElementById('newListName');
         const name = input.value.trim();
         
@@ -108,7 +106,7 @@ if (els.newListForm) {
         try {
             await api.lists.create(name);
             input.value = '';
-            await loadData(); // Ждем обновления
+            await loadData();
         } catch (err) {
             alert("Ошибка создания списка: " + err.message);
         }
@@ -155,12 +153,17 @@ async function refreshActiveList() {
             els.totalSum.innerText = '0.00 €';
         } else {
             els.activeListItems.innerHTML = list.items.map(ShoppingListItemRow).join('');
-            const sum = list.items.reduce((acc, item) => acc + (item.product.price * item.quantity), 0);
+            const sum = list.items.reduce((acc, item) => {
+                // Защита если товар удален
+                if (!item.product) return acc;
+                return acc + (item.product.price * item.quantity);
+            }, 0);
             els.totalSum.innerText = sum.toFixed(2) + ' €';
         }
     } catch(e) {
-        console.error(e);
-        backToLists();
+        console.error("Ошибка загрузки списка:", e);
+        // ВАЖНО: Мы больше не закрываем список автоматически, а показываем ошибку
+        els.activeListItems.innerHTML = `<div class="alert alert-danger">Ошибка: ${e.message}</div>`;
     }
 }
 
@@ -199,7 +202,6 @@ if(els.searchResults) {
         const btn = e.target.closest('.btn-add-to-list');
         if (!btn) return;
         
-        // Предотвращаем любые дефолтные действия
         e.preventDefault();
 
         try {
