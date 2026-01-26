@@ -7,12 +7,26 @@ async function request(endpoint, method = 'GET', data = null) {
     };
     if (data) config.body = JSON.stringify(data);
 
-    const response = await fetch(`${API_BASE}${endpoint}`, config);
-    if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Ошибка запроса');
+    try {
+        const response = await fetch(`${API_BASE}${endpoint}`, config);
+        
+        // Если сервер вернул ошибку
+        if (!response.ok) {
+            // Пытаемся прочитать как JSON
+            try {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Ошибка сервера');
+            } catch (e) {
+                // Если это не JSON (например, 502 Bad Gateway от Nginx)
+                throw new Error(`Ошибка сети: ${response.status} ${response.statusText}`);
+            }
+        }
+        
+        return response.json();
+    } catch (err) {
+        console.error("API Error:", err);
+        throw err;
     }
-    return response.json();
 }
 
 export const api = {
