@@ -1,52 +1,48 @@
 import { api } from '../api.js';
 import { ShoppingListCard, ShoppingListItemRow, ProductSearchItem } from '../components.js';
-import { state } from '../state.js'; // Берем кеш товаров отсюда
+import { state } from '../state.js';
 
 const els = {
-    container: document.getElementById('listsContainer'),
-    form: document.getElementById('newListForm'),
-    inputName: document.getElementById('newListName'),
-    
-    // Активный список
-    overview: document.getElementById('listsOverview'),
-    activeView: document.getElementById('activeListView'),
-    title: document.getElementById('activeListTitle'),
-    itemsList: document.getElementById('activeListItems'),
-    totalSum: document.getElementById('totalSum'),
-    backBtn: document.getElementById('backToListsBtn'),
-    
-    // Поиск
-    searchInput: document.getElementById('productSearchInput'),
-    searchResults: document.getElementById('searchResults'),
+    // ... поиск элементов перенесен внутрь функций ...
 };
 
 export function renderLists(lists) {
-    if (!els.container) return;
+    const container = document.getElementById('listsContainer');
+    if (!container) return;
     if (lists.length === 0) {
-        els.container.innerHTML = '<div class="col-12 text-center text-muted py-5">Нет списков. Создайте первый!</div>';
+        container.innerHTML = '<div class="col-12 text-center text-muted py-5">Нет списков. Создайте первый!</div>';
     } else {
-        els.container.innerHTML = lists.map(ShoppingListCard).join('');
+        container.innerHTML = lists.map(ShoppingListCard).join('');
     }
 }
 
 export function initLists(refreshCallback) {
+    const form = document.getElementById('newListForm');
+    const container = document.getElementById('listsContainer');
+    const backBtn = document.getElementById('backToListsBtn');
+    const searchInput = document.getElementById('productSearchInput');
+    const searchResults = document.getElementById('searchResults');
+    const itemsList = document.getElementById('activeListItems');
+    const btnSendTg = document.getElementById('btnSendTg'); // <--- КНОПКА ОТПРАВКИ
+
     // 1. Создание списка
-    if (els.form) {
-        els.form.addEventListener('submit', async (e) => {
+    if (form) {
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const name = els.inputName.value.trim();
+            const inputName = document.getElementById('newListName');
+            const name = inputName.value.trim();
             if(!name) return;
             try {
                 await api.lists.create(name);
-                els.inputName.value = '';
+                inputName.value = '';
                 if (refreshCallback) refreshCallback();
             } catch (err) { alert(err.message); }
         });
     }
 
-    // 2. Клик по списку (Открыть / Удалить)
-    if (els.container) {
-        els.container.addEventListener('click', async (e) => {
+    // 2. Открытие/Удаление
+    if (container) {
+        container.addEventListener('click', async (e) => {
             const delBtn = e.target.closest('.btn-delete-list');
             if (delBtn) {
                 e.stopPropagation();
@@ -61,24 +57,45 @@ export function initLists(refreshCallback) {
         });
     }
 
-    // 3. Кнопка Назад
-    if (els.backBtn) {
-        els.backBtn.addEventListener('click', () => {
-            els.activeView.classList.add('d-none');
-            els.overview.classList.remove('d-none');
+    // 3. Назад
+    if (backBtn) {
+        backBtn.addEventListener('click', () => {
+            document.getElementById('activeListView').classList.add('d-none');
+            document.getElementById('listsOverview').classList.remove('d-none');
             state.currentListId = null;
             if (refreshCallback) refreshCallback();
         });
     }
-
-    // 4. Поиск (Input)
-    if (els.searchInput) {
-        els.searchInput.addEventListener('input', (e) => renderProductPicker(e.target.value));
+    
+    // 4. Отправка в TELEGRAM
+    if (btnSendTg) {
+        btnSendTg.addEventListener('click', async () => {
+            if (!state.currentListId) return;
+            
+            const originalText = btnSendTg.innerHTML;
+            btnSendTg.disabled = true;
+            btnSendTg.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Отправка...';
+            
+            try {
+                await api.lists.sendToTelegram(state.currentListId);
+                alert("✅ Список успешно отправлен!");
+            } catch (err) {
+                alert("Ошибка отправки: " + err.message);
+            } finally {
+                btnSendTg.disabled = false;
+                btnSendTg.innerHTML = originalText;
+            }
+        });
     }
 
-    // 5. Добавление товара (Клик по результату поиска)
-    if (els.searchResults) {
-        els.searchResults.addEventListener('click', async (e) => {
+    // 5. Поиск
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => renderProductPicker(e.target.value));
+    }
+
+    // 6. Добавление товара
+    if (searchResults) {
+        searchResults.addEventListener('click', async (e) => {
             const btn = e.target.closest('.btn-add-to-list');
             if (!btn) return;
             e.preventDefault();
@@ -89,9 +106,9 @@ export function initLists(refreshCallback) {
         });
     }
 
-    // 6. Управление пунктами (Чекбокс / Удаление)
-    if (els.itemsList) {
-        els.itemsList.addEventListener('click', async (e) => {
+    // 7. Чекбокс/Удаление товара
+    if (itemsList) {
+        itemsList.addEventListener('click', async (e) => {
             if (e.target.classList.contains('check-item')) {
                 await api.lists.toggleItem(e.target.dataset.id, e.target.checked);
                 refreshActiveList();
@@ -105,54 +122,55 @@ export function initLists(refreshCallback) {
     }
 }
 
-// === Внутренние функции модуля ===
-
+// Внутренние функции
 async function openShoppingList(id) {
     state.currentListId = id;
-    els.overview.classList.add('d-none');
-    els.activeView.classList.remove('d-none');
-    els.searchInput.value = '';
+    document.getElementById('listsOverview').classList.add('d-none');
+    document.getElementById('activeListView').classList.remove('d-none');
+    document.getElementById('productSearchInput').value = '';
     
     renderProductPicker();
     await refreshActiveList();
 }
 
-// Экспортируем, чтобы App мог вызвать обновление, если мы уже внутри списка
 export async function refreshActiveList() {
     if(!state.currentListId) return;
+    const title = document.getElementById('activeListTitle');
+    const listEl = document.getElementById('activeListItems');
+    const totalEl = document.getElementById('totalSum');
+
     try {
         const list = await api.lists.getOne(state.currentListId);
-        els.title.innerText = list.name;
+        title.innerText = list.name;
         
         const items = list.items || [];
         if (items.length === 0) {
-            els.itemsList.innerHTML = '<li class="list-group-item text-center text-muted py-4">Список пуст. Выберите товары слева.</li>';
-            els.totalSum.innerText = '0.00 €';
+            listEl.innerHTML = '<li class="list-group-item text-center text-muted py-4">Список пуст. Выберите товары слева.</li>';
+            totalEl.innerText = '0.00 €';
         } else {
-            els.itemsList.innerHTML = items.map(ShoppingListItemRow).join('');
+            listEl.innerHTML = items.map(ShoppingListItemRow).join('');
             const sum = items.reduce((acc, item) => {
                 if (!item.product) return acc;
                 return acc + (item.product.price * item.quantity);
             }, 0);
-            els.totalSum.innerText = sum.toFixed(2) + ' €';
+            totalEl.innerText = sum.toFixed(2) + ' €';
         }
     } catch(e) {
-        console.error(e);
-        els.itemsList.innerHTML = `<div class="alert alert-danger">Ошибка: ${e.message}</div>`;
+        listEl.innerHTML = `<div class="alert alert-danger">Ошибка: ${e.message}</div>`;
     }
 }
 
 export function renderProductPicker(query = '') {
-    if (!els.searchResults) return;
+    const resEl = document.getElementById('searchResults');
+    if (!resEl) return;
     query = query.toLowerCase().trim();
     
-    // Используем state.allProducts, который был загружен в App.js
     let filtered = state.allProducts.filter(p => p.name.toLowerCase().includes(query));
     filtered.sort((a, b) => a.price - b.price);
 
     if (filtered.length === 0) {
-        els.searchResults.innerHTML = '<div class="list-group-item text-muted">Ничего не найдено</div>';
+        resEl.innerHTML = '<div class="list-group-item text-muted">Ничего не найдено</div>';
     } else {
-        els.searchResults.innerHTML = filtered.map(ProductSearchItem).join('');
+        resEl.innerHTML = filtered.map(ProductSearchItem).join('');
     }
 }

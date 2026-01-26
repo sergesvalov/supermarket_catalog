@@ -1,4 +1,5 @@
 import os
+import requests  # <--- НУЖНО ДЛЯ TELEGRAM
 from fastapi import FastAPI, Depends, HTTPException
 from sqlmodel import Field, Session, SQLModel, create_engine, select, Relationship
 from typing import List, Optional
@@ -49,8 +50,6 @@ class ShoppingListItem(SQLModel, table=True):
     product_id: int = Field(foreign_key="product.id")
     quantity: int = Field(default=1)
     is_bought: bool = Field(default=False)
-    
-    # Убираем обратную связь для избежания рекурсии
     product: Product = Relationship()
 
 class ShoppingList(SQLModel, table=True):
@@ -58,6 +57,16 @@ class ShoppingList(SQLModel, table=True):
     name: str
     created_at: datetime = Field(default_factory=datetime.now)
     items: List[ShoppingListItem] = Relationship(sa_relationship_kwargs={"cascade": "all, delete"})
+
+# --- TELEGRAM ---
+class TelegramConfig(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    bot_token: str = Field(description="Токен бота")
+
+class TelegramUser(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    chat_id: str
 
 # ===========================
 # 2. НАСТРОЙКА БД
@@ -111,10 +120,9 @@ def delete_shop(shop_id: int, session: Session = Depends(get_session)):
 # --- Товары ---
 @app.get("/products", response_model=List[Product])
 def get_products(session: Session = Depends(get_session)):
-    # ВОТ ЗДЕСЬ ИСПРАВЛЕНИЕ:
     query = select(Product).options(
-        selectinload(Product.shop),    # Загружаем магазин
-        selectinload(Product.history)  # Загружаем историю
+        selectinload(Product.shop),
+        selectinload(Product.history)
     ).order_by(Product.updated_at.desc())
     return session.exec(query).all()
 
@@ -130,7 +138,6 @@ def create_product(product: Product, session: Session = Depends(get_session)):
     session.add(history_entry)
     session.commit()
     
-    # Подгружаем связи для ответа API
     if product.shop_id: session.refresh(product, ["shop"])
     session.refresh(product, ["history"])
     return product
@@ -141,12 +148,10 @@ def update_product(product_id: int, product_data: Product, session: Session = De
     if not db_product:
         raise HTTPException(status_code=404, detail="Товар не найден")
     
-    # Логика истории цен
     old_price = db_product.price
     new_price = product_data.price
     price_changed = abs(old_price - new_price) > 0.001
 
-    # Обновление полей
     for key, value in product_data.dict(exclude_unset=True).items():
         if key != 'id': setattr(db_product, key, value)
     
@@ -160,7 +165,6 @@ def update_product(product_id: int, product_data: Product, session: Session = De
     session.commit()
     session.refresh(db_product)
     
-    # ВАЖНО: Обновляем связи перед отправкой ответа
     if db_product.shop_id: session.refresh(db_product, ["shop"])
     session.refresh(db_product, ["history"])
     
@@ -235,4 +239,98 @@ def remove_item(item_id: int, session: Session = Depends(get_session)):
     if item:
         session.delete(item)
         session.commit()
+    return {"ok": True}
+
+# --- TELEGRAM ЭНДПОИНТЫ ---
+
+@app.get("/telegram/config", response_model=Optional[TelegramConfig])
+def get_telegram_config(session: Session = Depends(get_session)):
+    return session.exec(select(TelegramConfig)).first()
+
+@app.post("/telegram/config", response_model=TelegramConfig)
+def save_telegram_config(config: TelegramConfig, session: Session = Depends(get_session)):
+    existing = session.exec(select(TelegramConfig)).first()
+    if existing:
+        existing.bot_token = config.bot_token
+        session.add(existing)
+        session.commit()
+        session.refresh(existing)
+        return existing
+    session.add(config)
+    session.commit()
+    session.refresh(config)
+    return config
+
+@app.get("/telegram/users", response_model=List[TelegramUser])
+def get_telegram_users(session: Session = Depends(get_session)):
+    return session.exec(select(TelegramUser)).all()
+
+@app.post("/telegram/users", response_model=TelegramUser)
+def create_telegram_user(user: TelegramUser, session: Session = Depends(get_session)):
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+@app.delete("/telegram/users/{user_id}")
+def delete_telegram_user(user_id: int, session: Session = Depends(get_session)):
+    user = session.get(TelegramUser, user_id)
+    if user:
+        session.delete(user)
+        session.commit()
+    return {"ok": True}
+
+@app.post("/telegram/send/{list_id}")
+def send_list_to_telegram(list_id: int, session: Session = Depends(get_session)):
+    config = session.exec(select(TelegramConfig)).first()
+    if not config or not config.bot_token:
+        raise HTTPException(status_code=400, detail="Бот не настроен")
+    
+    users = session.exec(select(TelegramUser)).all()
+    if not users:
+        raise HTTPException(status_code=400, detail="Нет получателей")
+
+    # Грузим список с товарами и магазинами
+    query = select(ShoppingList).where(ShoppingList.id == list_id).options(
+        selectinload(ShoppingList.items).selectinload(ShoppingListItem.product).selectinload(Product.shop)
+    )
+    shopping_list = session.exec(query).first()
+    if not shopping_list:
+        raise HTTPException(status_code=404, detail="Список не найден")
+
+    # Формируем текст
+    lines = [f"🛒 <b>{shopping_list.name}</b>\n"]
+    total = 0.0
+    
+    for item in shopping_list.items:
+        status = "✅" if item.is_bought else "▫️"
+        p = item.product
+        sum_item = p.price * item.quantity
+        total += sum_item
+        shop_name = f"({p.shop.name})" if p.shop else ""
+        
+        lines.append(f"{status} <b>{p.name}</b> {shop_name}")
+        lines.append(f"   {item.quantity} шт x {p.price:.2f} = {sum_item:.2f} €")
+    
+    lines.append(f"\n💰 <b>Итого: {total:.2f} €</b>")
+    message_text = "\n".join(lines)
+
+    url = f"https://api.telegram.org/bot{config.bot_token}/sendMessage"
+    errors = []
+    
+    for user in users:
+        try:
+            resp = requests.post(url, json={
+                "chat_id": user.chat_id,
+                "text": message_text,
+                "parse_mode": "HTML"
+            })
+            if not resp.ok:
+                errors.append(f"{user.name}: {resp.text}")
+        except Exception as e:
+            errors.append(f"{user.name}: {str(e)}")
+            
+    if errors:
+        raise HTTPException(status_code=500, detail="Ошибки: " + "; ".join(errors))
+
     return {"ok": True}
