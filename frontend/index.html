@@ -38,7 +38,7 @@
                                     <label class="form-label text-muted small">Магазин</label>
                                     <select id="shopSelect" class="form-select">
                                         <option value="">-- Не выбрано --</option>
-                                        </select>
+                                    </select>
                                     <div class="form-text text-muted small">Нет в списке? Добавьте во вкладке Магазины</div>
                                 </div>
 
@@ -48,13 +48,17 @@
                                 </div>
 
                                 <div class="row mb-3">
-                                    <div class="col">
+                                    <div class="col-4">
                                         <label class="form-label text-muted small">Вес (г)</label>
-                                        <input type="number" min="0" id="weight" class="form-control" placeholder="опц.">
+                                        <input type="number" min="0" id="weight" class="form-control" placeholder="...">
                                     </div>
-                                    <div class="col">
+                                    <div class="col-4">
                                         <label class="form-label text-muted small">Ккал</label>
-                                        <input type="number" min="0" id="calories" class="form-control" placeholder="опц.">
+                                        <input type="number" min="0" id="calories" class="form-control" placeholder="...">
+                                    </div>
+                                    <div class="col-4">
+                                        <label class="form-label text-muted small">Шт.</label>
+                                        <input type="number" min="0" id="quantity" class="form-control" placeholder="...">
                                     </div>
                                 </div>
                                 
@@ -81,8 +85,7 @@
                                 <input type="text" id="newShopName" class="form-control" placeholder="Название магазина" required>
                                 <button type="submit" class="btn btn-primary">Создать</button>
                             </form>
-                            <ul class="list-group" id="shopList">
-                                </ul>
+                            <ul class="list-group" id="shopList"></ul>
                         </div>
                     </div>
                 </div>
@@ -92,19 +95,19 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // === ЛОГИКА МАГАЗИНОВ ===
+        // === РАБОТА С МАГАЗИНАМИ ===
         async function loadShops() {
             const response = await fetch('/api/shops');
             const shops = await response.json();
             
-            // 1. Обновляем выпадающий список в форме товара
+            // Заполняем Select в форме товара
             const select = document.getElementById('shopSelect');
-            const currentVal = select.value;
+            const currentVal = select.value; // запоминаем выбор
             select.innerHTML = '<option value="">-- Не выбрано --</option>' + 
                 shops.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-            select.value = currentVal; // сохраняем выбор если был
+            select.value = currentVal; 
 
-            // 2. Обновляем список во вкладке Магазины
+            // Заполняем список во вкладке "Магазины"
             const list = document.getElementById('shopList');
             list.innerHTML = shops.map(s => `
                 <li class="list-group-item d-flex justify-content-between align-items-center">
@@ -123,31 +126,33 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({name})
                 });
-                if (!res.ok) throw new Error('Ошибка создания');
+                if (!res.ok) throw new Error('Ошибка создания (возможно дубликат)');
                 document.getElementById('newShopName').value = '';
                 loadShops();
             } catch (err) { alert(err.message); }
         });
 
         async function deleteShop(id) {
-            if(!confirm('Удалить магазин?')) return;
+            if(!confirm('Удалить этот магазин?')) return;
             await fetch(`/api/shops/${id}`, { method: 'DELETE' });
             loadShops();
-            loadProducts(); // Обновить товары, т.к. у них пропадет магазин
+            loadProducts(); // Обновляем список товаров (у них пропадет имя магазина)
         }
 
-        // === ЛОГИКА ТОВАРОВ ===
+        // === РАБОТА С ТОВАРАМИ ===
         async function loadProducts() {
             const response = await fetch('/api/products');
             const products = await response.json();
             const list = document.getElementById('productList');
             
             list.innerHTML = products.map(p => {
+                // Генерация бейджиков
                 let badges = '';
+                if (p.quantity) badges += `<span class="badge bg-light text-dark border me-1">📦 ${p.quantity} шт</span>`;
                 if (p.weight) badges += `<span class="badge bg-light text-dark border me-1">⚖️ ${p.weight}г</span>`;
                 if (p.calories) badges += `<span class="badge bg-light text-dark border">🔥 ${p.calories} ккал</span>`;
                 
-                // Если магазин есть, берем имя, иначе пишем "Нет данных"
+                // Проверка наличия магазина
                 const shopName = p.shop ? p.shop.name : '<span class="text-muted fst-italic">Без магазина</span>';
 
                 return `
@@ -161,7 +166,7 @@
                         <div class="text-end ps-3">
                             <div class="fw-bold fs-5 text-success mb-1">${p.price.toFixed(2)} €</div>
                             <button class="btn btn-sm btn-outline-primary" 
-                                onclick="startEdit(${p.id}, '${p.name}', ${p.shop_id}, ${p.price}, ${p.weight}, ${p.calories})">
+                                onclick="startEdit(${p.id}, '${p.name}', ${p.shop_id}, ${p.price}, ${p.weight}, ${p.calories}, ${p.quantity})">
                                 <i class="bi bi-pencil-fill"></i>
                             </button>
                         </div>
@@ -170,21 +175,27 @@
             `}).join('');
         }
 
-        window.startEdit = function(id, name, shopId, price, weight, calories) {
+        // Функция запуска редактирования
+        window.startEdit = function(id, name, shopId, price, weight, calories, quantity) {
             document.getElementById('productId').value = id;
             document.getElementById('name').value = name;
-            document.getElementById('shopSelect').value = shopId || ""; // Выбираем магазин в селекте
+            document.getElementById('shopSelect').value = shopId || "";
             document.getElementById('price').value = price;
+            // null значения заменяем на пустую строку
             document.getElementById('weight').value = weight || '';
             document.getElementById('calories').value = calories || '';
+            document.getElementById('quantity').value = quantity || '';
 
-            document.getElementById('formTitle').innerText = 'Редактировать';
+            // Меняем состояние формы
+            document.getElementById('formTitle').innerText = 'Редактировать товар';
             document.getElementById('submitBtn').innerText = 'Сохранить';
             document.getElementById('submitBtn').classList.replace('btn-success', 'btn-primary');
             document.getElementById('cancelBtn').classList.remove('d-none');
+            
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
+        // Функция сброса формы
         window.resetForm = function() {
             document.getElementById('productForm').reset();
             document.getElementById('productId').value = '';
@@ -194,48 +205,61 @@
             document.getElementById('cancelBtn').classList.add('d-none');
         }
 
+        // Обработка отправки товара
         document.getElementById('productForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const id = document.getElementById('productId').value;
             const shopVal = document.getElementById('shopSelect').value;
             
-            // Валидация в JS тоже не помешает
-            const weight = parseFloat(document.getElementById('weight').value);
-            const calories = parseFloat(document.getElementById('calories').value);
-            if (weight < 0 || calories < 0) {
-                alert("Вес и калории не могут быть отрицательными!");
+            // Парсинг значений
+            const price = parseFloat(document.getElementById('price').value);
+            const weightVal = document.getElementById('weight').value;
+            const calsVal = document.getElementById('calories').value;
+            const qtyVal = document.getElementById('quantity').value;
+
+            const weight = weightVal ? parseFloat(weightVal) : null;
+            const calories = calsVal ? parseFloat(calsVal) : null;
+            const quantity = qtyVal ? parseInt(qtyVal) : null;
+
+            // Валидация на фронтенде
+            if (price < 0 || (weight && weight < 0) || (calories && calories < 0) || (quantity && quantity < 0)) {
+                alert("Значения цены, веса, калорий и количества не могут быть отрицательными!");
                 return;
             }
 
             const data = {
                 name: document.getElementById('name').value,
-                shop_id: shopVal ? parseInt(shopVal) : null, // Шлем null если не выбрано
-                price: parseFloat(document.getElementById('price').value),
-                weight: weight || null,
-                calories: calories || null
+                shop_id: shopVal ? parseInt(shopVal) : null,
+                price: price,
+                weight: weight,
+                calories: calories,
+                quantity: quantity
             };
 
             const url = id ? `/api/products/${id}` : '/api/products';
             const method = id ? 'PUT' : 'POST';
 
-            const res = await fetch(url, {
-                method: method,
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(data)
-            });
-            
-            if(!res.ok) {
-                const err = await res.json();
-                // Показываем ошибку валидации от сервера
-                alert("Ошибка: " + JSON.stringify(err.detail));
-                return;
-            }
+            try {
+                const res = await fetch(url, {
+                    method: method,
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                
+                if(!res.ok) {
+                    const err = await res.json();
+                    alert("Ошибка сервера: " + JSON.stringify(err));
+                    return;
+                }
 
-            resetForm();
-            loadProducts();
+                resetForm();
+                loadProducts();
+            } catch (err) {
+                alert("Ошибка сети: " + err.message);
+            }
         });
 
-        // Старт
+        // Инициализация
         loadShops();
         loadProducts();
     </script>
