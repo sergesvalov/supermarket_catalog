@@ -1,6 +1,5 @@
 // Инициализируем Bootstrap Modal
 const historyModalEl = document.getElementById('historyModal');
-// Проверка на случай если модалки нет в HTML
 let historyModal = historyModalEl ? new bootstrap.Modal(historyModalEl) : null;
 
 const els = {
@@ -13,8 +12,8 @@ export function showHistoryModal(name, history) {
 
     els.name.innerText = name;
     
-    // Копия массива для сортировки
-    const sortedHistory = [...history].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    // Сортировка по ID (от большего к меньшему - новые сверху)
+    const sortedHistory = [...history].sort((a, b) => b.id - a.id);
 
     if (sortedHistory.length === 0) {
         els.list.innerHTML = '<li class="list-group-item text-muted">Нет данных об изменениях</li>';

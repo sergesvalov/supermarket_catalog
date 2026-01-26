@@ -12,12 +12,26 @@ export async function initTelegram() {
     if (formConfig) {
         formConfig.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const token = document.getElementById('tgToken').value.trim();
+            const btn = formConfig.querySelector('button');
+            const tokenInput = document.getElementById('tgToken');
+            const token = tokenInput.value.trim();
+            
             if (!token) return;
+
+            // UI Feedback
+            const oldText = btn.innerText;
+            btn.innerText = 'Проверка...';
+            btn.disabled = true;
+
             try {
                 await api.telegram.saveConfig(token);
-                alert("Токен сохранен!");
-            } catch (err) { alert(err.message); }
+                alert("✅ Токен успешно проверен и сохранен!");
+            } catch (err) { 
+                alert("❌ Ошибка: " + err.message); 
+            } finally {
+                btn.innerText = oldText;
+                btn.disabled = false;
+            }
         });
     }
 
