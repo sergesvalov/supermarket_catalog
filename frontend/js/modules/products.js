@@ -3,14 +3,28 @@ import { ProductCard } from '../components.js';
 import { validatePositive, parseOptionalFloat, parseOptionalInt } from '../utils.js';
 import { showHistoryModal } from './history.js';
 
-// DOM элементы
-const els = {
-    list: document.getElementById('productList'),
-    form: document.getElementById('productForm'),
-    title: document.getElementById('formTitle'),
-    submitBtn: document.getElementById('submitBtn'),
-    cancelBtn: document.getElementById('cancelBtn'),
-    inputs: {
+// Кешируем элементы для модуля
+let listEl, formEl, titleEl, submitBtn, cancelBtn;
+let inputs = {};
+
+export function renderProducts(products) {
+    if (listEl) {
+        listEl.innerHTML = products.map(ProductCard).join('');
+    }
+}
+
+export function initProducts(refreshCallback) {
+    // Поиск элементов
+    listEl = document.getElementById('productList');
+    formEl = document.getElementById('productForm');
+    titleEl = document.getElementById('formTitle');
+    submitBtn = document.getElementById('submitBtn');
+    cancelBtn = document.getElementById('cancelBtn');
+    
+    if (!formEl) return;
+
+    // Сбор инпутов
+    inputs = {
         id: document.getElementById('productId'),
         name: document.getElementById('name'),
         shop: document.getElementById('shopSelect'),
@@ -18,85 +32,80 @@ const els = {
         weight: document.getElementById('weight'),
         calories: document.getElementById('calories'),
         quantity: document.getElementById('quantity'),
-    }
-};
+    };
 
-export function renderProducts(products) {
-    if (els.list) els.list.innerHTML = products.map(ProductCard).join('');
-}
-
-export function initProducts(refreshCallback) {
-    if (!els.list) return;
-
-    // 1. Клики по списку (Edit / History)
-    els.list.addEventListener('click', (e) => {
+    // 1. Делегирование кликов (Edit / History)
+    listEl.addEventListener('click', (e) => {
         const btnEdit = e.target.closest('.btn-edit');
         if (btnEdit) {
-            const data = JSON.parse(btnEdit.dataset.product);
-            fillForm(data);
+            fillForm(JSON.parse(btnEdit.dataset.product));
             return;
         }
 
         const btnHistory = e.target.closest('.btn-history');
         if (btnHistory) {
-            const history = JSON.parse(btnHistory.dataset.history);
-            const name = btnHistory.dataset.name;
-            showHistoryModal(name, history);
+            showHistoryModal(btnHistory.dataset.name, JSON.parse(btnHistory.dataset.history));
         }
     });
 
-    // 2. Сабмит формы
-    if (els.form) {
-        els.form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const rawData = {
-                name: els.inputs.name.value,
-                shop_id: parseOptionalInt(els.inputs.shop.value),
-                price: parseFloat(els.inputs.price.value),
-                weight: parseOptionalFloat(els.inputs.weight.value),
-                calories: parseOptionalFloat(els.inputs.calories.value),
-                quantity: parseOptionalInt(els.inputs.quantity.value),
-            };
+    // 2. Обработка формы
+    formEl.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // ВАЖНО: Четкое получение shop_id
+        const shopIdValue = inputs.shop.value;
 
-            if (!validatePositive(rawData.price, rawData.weight, rawData.calories, rawData.quantity)) {
-                return alert('Числа не могут быть отрицательными!');
+        const rawData = {
+            name: inputs.name.value.trim(),
+            shop_id: shopIdValue ? parseInt(shopIdValue) : null,
+            price: parseFloat(inputs.price.value),
+            weight: parseOptionalFloat(inputs.weight.value),
+            calories: parseOptionalFloat(inputs.calories.value),
+            quantity: parseOptionalInt(inputs.quantity.value),
+        };
+
+        if (!validatePositive(rawData.price, rawData.weight, rawData.calories, rawData.quantity)) {
+            return alert('Числа не могут быть отрицательными!');
+        }
+
+        try {
+            const id = inputs.id.value;
+            if (id) {
+                await api.products.update(id, rawData);
+            } else {
+                await api.products.create(rawData);
             }
+            resetForm();
+            if (refreshCallback) await refreshCallback();
+        } catch (err) { 
+            alert("Ошибка сохранения: " + err.message); 
+        }
+    });
 
-            try {
-                const id = els.inputs.id.value;
-                if (id) await api.products.update(id, rawData);
-                else await api.products.create(rawData);
-                resetForm();
-                if (refreshCallback) refreshCallback();
-            } catch (err) { alert(err.message); }
-        });
-    }
-
-    // 3. Отмена
-    if (els.cancelBtn) els.cancelBtn.addEventListener('click', resetForm);
+    if (cancelBtn) cancelBtn.addEventListener('click', resetForm);
 }
 
 function fillForm(p) {
-    els.inputs.id.value = p.id;
-    els.inputs.name.value = p.name;
-    els.inputs.shop.value = p.shop_id || "";
-    els.inputs.price.value = p.price;
-    els.inputs.weight.value = p.weight || "";
-    els.inputs.calories.value = p.calories || "";
-    els.inputs.quantity.value = p.quantity || "";
+    inputs.id.value = p.id;
+    inputs.name.value = p.name;
+    inputs.shop.value = p.shop_id || ""; // Связываем селект по ID
+    inputs.price.value = p.price;
+    inputs.weight.value = p.weight || "";
+    inputs.calories.value = p.calories || "";
+    inputs.quantity.value = p.quantity || "";
 
-    els.title.innerText = 'Редактировать товар';
-    els.submitBtn.innerText = 'Сохранить';
-    els.submitBtn.classList.replace('btn-success', 'btn-primary');
-    els.cancelBtn.classList.remove('d-none');
+    titleEl.innerText = 'Редактировать товар';
+    submitBtn.innerText = 'Сохранить';
+    submitBtn.classList.replace('btn-success', 'btn-primary');
+    cancelBtn.classList.remove('d-none');
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function resetForm() {
-    els.form.reset();
-    els.inputs.id.value = '';
-    els.title.innerText = 'Добавить товар';
-    els.submitBtn.innerText = 'Добавить';
-    els.submitBtn.classList.replace('btn-primary', 'btn-success');
-    els.cancelBtn.classList.add('d-none');
+    formEl.reset();
+    inputs.id.value = '';
+    titleEl.innerText = 'Добавить товар';
+    submitBtn.innerText = 'Добавить';
+    submitBtn.classList.replace('btn-primary', 'btn-success');
+    cancelBtn.classList.add('d-none');
 }
