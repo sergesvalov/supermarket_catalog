@@ -7,7 +7,10 @@ export function ProductCard(p) {
     if (p.calories) badges += `<span class="badge bg-light text-dark border">🔥 ${p.calories} ккал</span>`;
 
     const shopName = p.shop ? p.shop.name : '<span class="text-muted fst-italic">Без магазина</span>';
+    
+    // Экранируем кавычки для JSON в data-атрибутах
     const productJson = JSON.stringify(p).replace(/"/g, '&quot;');
+    const historyJson = JSON.stringify(p.history || []).replace(/"/g, '&quot;');
 
     return `
     <div class="card mb-2 p-3 border-0 shadow-sm">
@@ -19,9 +22,17 @@ export function ProductCard(p) {
             </div>
             <div class="text-end ps-3">
                 <div class="fw-bold fs-5 text-success mb-1">${formatCurrency(p.price)}</div>
-                <button class="btn btn-sm btn-outline-primary btn-edit" data-product="${productJson}">
-                    <i class="bi bi-pencil-fill"></i>
-                </button>
+                <div class="btn-group">
+                    <button class="btn btn-sm btn-outline-secondary btn-history" 
+                        title="История цен" 
+                        data-name="${p.name}" 
+                        data-history="${historyJson}">
+                        <i class="bi bi-clock-history"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-primary btn-edit" data-product="${productJson}">
+                        <i class="bi bi-pencil-fill"></i>
+                    </button>
+                </div>
             </div>
         </div>
     </div>`;
@@ -39,8 +50,6 @@ export function ShopOption(s) {
     return `<option value="${s.id}">${s.name}</option>`;
 }
 
-// === КОМПОНЕНТЫ ДЛЯ СПИСКОВ ===
-
 export function ShoppingListCard(list) {
     const date = new Date(list.created_at).toLocaleDateString();
     return `
@@ -51,17 +60,19 @@ export function ShoppingListCard(list) {
                     <h5 class="card-title mb-1">${list.name}</h5>
                     <small class="text-muted">Создан: ${date}</small>
                 </div>
-                <button class="btn btn-outline-danger btn-sm btn-delete-list" data-id="${list.id}" title="Удалить список">&times;</button>
+                <button class="btn btn-outline-danger btn-sm btn-delete-list" data-id="${list.id}">&times;</button>
             </div>
         </div>
     </div>`;
 }
 
 export function ShoppingListItemRow(item) {
+    // Защита, если продукт был удален
+    if (!item.product) return ''; 
+
     const p = item.product;
     const shopName = p.shop ? p.shop.name : '???';
     const checked = item.is_bought ? 'checked' : '';
-    // Если куплено, зачеркиваем
     const strike = item.is_bought ? 'text-decoration-line-through text-muted' : '';
     const total = (p.price * item.quantity).toFixed(2);
 
@@ -81,7 +92,6 @@ export function ShoppingListItemRow(item) {
     </li>`;
 }
 
-// Элемент в результатах поиска при добавлении в список
 export function ProductSearchItem(p) {
     const shopName = p.shop ? p.shop.name : 'Без магазина';
     return `

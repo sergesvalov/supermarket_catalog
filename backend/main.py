@@ -14,6 +14,16 @@ class Shop(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True, unique=True, description="Название магазина")
 
+# --- НОВАЯ МОДЕЛЬ: ИСТОРИЯ ЦЕН ---
+class PriceHistory(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    product_id: int = Field(foreign_key="product.id")
+    price: float
+    created_at: datetime = Field(default_factory=datetime.now)
+    
+    # Связь с продуктом (не обязательна для API, но полезна для ORM)
+    product: "Product" = Relationship(back_populates="history")
+
 class Product(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
@@ -25,6 +35,9 @@ class Product(SQLModel, table=True):
 
     shop_id: Optional[int] = Field(default=None, foreign_key="shop.id")
     shop: Optional[Shop] = Relationship()
+    
+    # Связь с историей (сортируем от новых к старым при загрузке сложно, проще в Python)
+    history: List[PriceHistory] = Relationship(back_populates="product", sa_relationship_kwargs={"cascade": "all, delete"})
 
     @field_validator('price', 'weight', 'calories', 'quantity')
     @classmethod
@@ -33,26 +46,20 @@ class Product(SQLModel, table=True):
             raise ValueError('Значение не может быть отрицательным')
         return v
 
-# --- СПИСКИ ПОКУПОК (Исправленные) ---
-
+# --- СПИСКИ ПОКУПОК ---
 class ShoppingListItem(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     shopping_list_id: int = Field(foreign_key="shoppinglist.id")
     product_id: int = Field(foreign_key="product.id")
     quantity: int = Field(default=1)
     is_bought: bool = Field(default=False)
-
-    # ВАЖНО: Мы убрали связь обратно на ShoppingList, чтобы не было рекурсии в JSON
     product: Product = Relationship()
 
 class ShoppingList(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
     created_at: datetime = Field(default_factory=datetime.now)
-    
-    # Связь осталась здесь (Список -> Пункты)
-    items: List["ShoppingListItem"] = Relationship(sa_relationship_kwargs={"cascade": "all, delete"})
-
+    items: List[ShoppingListItem] = Relationship(sa_relationship_kwargs={"cascade": "all, delete"})
 
 # ===========================
 # 2. НАСТРОЙКА БД
@@ -106,7 +113,11 @@ def delete_shop(shop_id: int, session: Session = Depends(get_session)):
 # --- Товары ---
 @app.get("/products", response_model=List[Product])
 def get_products(session: Session = Depends(get_session)):
-    query = select(Product).options(selectinload(Product.shop)).order_by(Product.updated_at.desc())
+    # Подгружаем магазин И историю цен
+    query = select(Product).options(
+        selectinload(Product.shop),
+        selectinload(Product.history)
+    ).order_by(Product.updated_at.desc())
     return session.exec(query).all()
 
 @app.post("/products", response_model=Product)
@@ -115,7 +126,14 @@ def create_product(product: Product, session: Session = Depends(get_session)):
     session.add(product)
     session.commit()
     session.refresh(product)
+    
+    # 1. Создаем первую запись в истории
+    history_entry = PriceHistory(product_id=product.id, price=product.price)
+    session.add(history_entry)
+    session.commit()
+    
     if product.shop_id: session.refresh(product, ["shop"])
+    session.refresh(product, ["history"])
     return product
 
 @app.put("/products/{product_id}", response_model=Product)
@@ -124,14 +142,26 @@ def update_product(product_id: int, product_data: Product, session: Session = De
     if not db_product:
         raise HTTPException(status_code=404, detail="Товар не найден")
     
+    # Проверяем, изменилась ли цена
+    old_price = db_product.price
+    new_price = product_data.price
+    price_changed = abs(old_price - new_price) > 0.001 # Сравниваем float корректно
+
     for key, value in product_data.dict(exclude_unset=True).items():
         if key != 'id': setattr(db_product, key, value)
     
     db_product.updated_at = datetime.now()
     session.add(db_product)
+    
+    # 2. Если цена изменилась, пишем в историю
+    if price_changed:
+        history_entry = PriceHistory(product_id=product_id, price=new_price)
+        session.add(history_entry)
+        
     session.commit()
     session.refresh(db_product)
     if db_product.shop_id: session.refresh(db_product, ["shop"])
+    session.refresh(db_product, ["history"])
     return db_product
 
 # --- Списки покупок ---
@@ -142,7 +172,6 @@ def get_lists(session: Session = Depends(get_session)):
 @app.get("/lists/{list_id}", response_model=ShoppingList)
 def get_list_details(list_id: int, session: Session = Depends(get_session)):
     query = select(ShoppingList).where(ShoppingList.id == list_id).options(
-        # Загружаем Пункты -> Продукты -> Магазины
         selectinload(ShoppingList.items).selectinload(ShoppingListItem.product).selectinload(Product.shop)
     )
     obj = session.exec(query).first()
@@ -170,7 +199,6 @@ def delete_list(list_id: int, session: Session = Depends(get_session)):
 # --- Пункты списка ---
 @app.post("/lists/items", response_model=ShoppingListItem)
 def add_item_to_list(item: ShoppingListItem, session: Session = Depends(get_session)):
-    # Проверка на дубликат
     existing = session.exec(
         select(ShoppingListItem)
         .where(ShoppingListItem.shopping_list_id == item.shopping_list_id)

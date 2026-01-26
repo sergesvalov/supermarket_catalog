@@ -42,6 +42,15 @@ const els = {
     searchResults: document.getElementById('searchResults'),
 };
 
+// Модальное окно истории (через Bootstrap API)
+// Убедитесь, что bootstrap.bundle.min.js подключен в index.html
+const historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
+const elsHistory = {
+    name: document.getElementById('historyProductName'),
+    list: document.getElementById('historyList')
+};
+
+
 // === STATE ===
 let allProductsCache = [];
 let currentListId = null;
@@ -49,7 +58,6 @@ let currentListId = null;
 // === INITIALIZATION ===
 async function loadData() {
     try {
-        console.log("Загрузка данных...");
         const [products, shops, lists] = await Promise.all([
             api.products.list(), 
             api.shops.list(),
@@ -62,10 +70,10 @@ async function loadData() {
         renderShops(shops);
         renderLists(lists);
         
+        // Если открыт список покупок, обновляем его и picker товаров
         if (currentListId) {
             refreshActiveList();
-            // Если мы уже внутри списка, нужно обновить и левую колонку выбора
-            renderProductPicker(els.productSearchInput.value); 
+            renderProductPicker(els.productSearchInput.value);
         }
     } catch (e) { 
         console.error("Ошибка загрузки:", e); 
@@ -94,28 +102,71 @@ function renderLists(lists) {
     }
 }
 
-// === HANDLERS: СПИСКИ ===
+// === HANDLERS: ТОВАРЫ И ИСТОРИЯ ===
 
-// 1. Создание списка
+if (els.productList) {
+    els.productList.addEventListener('click', (e) => {
+        // 1. Редактировать
+        const btnEdit = e.target.closest('.btn-edit');
+        if (btnEdit) {
+            const data = JSON.parse(btnEdit.dataset.product);
+            fillForm(data);
+            return;
+        }
+        
+        // 2. Показать историю (НОВОЕ)
+        const btnHistory = e.target.closest('.btn-history');
+        if (btnHistory) {
+            const history = JSON.parse(btnHistory.dataset.history);
+            const name = btnHistory.dataset.name;
+            showHistoryModal(name, history);
+        }
+    });
+}
+
+// Функция отображения истории в модальном окне
+function showHistoryModal(name, history) {
+    elsHistory.name.innerText = name;
+    
+    // Сортировка: новые сверху
+    history.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    if (history.length === 0) {
+        elsHistory.list.innerHTML = '<li class="list-group-item text-muted">Нет данных об изменениях</li>';
+    } else {
+        elsHistory.list.innerHTML = history.map(h => {
+            const date = new Date(h.created_at).toLocaleString();
+            return `
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span>${date}</span>
+                <span class="fw-bold text-success">${parseFloat(h.price).toFixed(2)} €</span>
+            </li>`;
+        }).join('');
+    }
+    
+    historyModal.show();
+}
+
+
+// === HANDLERS: СПИСКИ ПОКУПОК ===
+
+// Создание
 if (els.newListForm) {
     els.newListForm.addEventListener('submit', async (e) => {
         e.preventDefault(); 
         const input = document.getElementById('newListName');
         const name = input.value.trim();
-        
         if(!name) return;
 
         try {
             await api.lists.create(name);
             input.value = '';
             await loadData();
-        } catch (err) {
-            alert("Ошибка создания списка: " + err.message);
-        }
+        } catch (err) { alert(err.message); }
     });
 }
 
-// 2. Клик по списку (Открытие)
+// Открытие / Удаление списка
 if (els.listsContainer) {
     els.listsContainer.addEventListener('click', async (e) => {
         const delBtn = e.target.closest('.btn-delete-list');
@@ -129,9 +180,7 @@ if (els.listsContainer) {
         }
         
         const card = e.target.closest('.list-card');
-        if (card) {
-            openShoppingList(card.dataset.id);
-        }
+        if (card) openShoppingList(card.dataset.id);
     });
 }
 
@@ -140,10 +189,10 @@ async function openShoppingList(id) {
     els.listsOverview.classList.add('d-none');
     els.activeListView.classList.remove('d-none');
     
-    // Сброс фильтра
+    // Сброс поиска
     els.productSearchInput.value = '';
     
-    // === ВАЖНО: Сразу рендерим все товары слева ===
+    // Сразу показываем все товары для выбора
     renderProductPicker();
     
     await refreshActiveList();
@@ -155,7 +204,6 @@ async function refreshActiveList() {
         const list = await api.lists.getOne(currentListId);
         els.activeListTitle.innerText = list.name;
         
-        // Защита от пустого списка items
         const items = list.items || [];
 
         if (items.length === 0) {
@@ -163,6 +211,7 @@ async function refreshActiveList() {
             els.totalSum.innerText = '0.00 €';
         } else {
             els.activeListItems.innerHTML = items.map(ShoppingListItemRow).join('');
+            
             const sum = items.reduce((acc, item) => {
                 if (!item.product) return acc;
                 return acc + (item.product.price * item.quantity);
@@ -184,24 +233,18 @@ function backToLists() {
 
 if(els.backToListsBtn) els.backToListsBtn.addEventListener('click', backToLists);
 
-// 3. Умный поиск (ФИЛЬТРАЦИЯ)
+// Поиск и фильтрация товаров (Picker)
 if(els.productSearchInput) {
     els.productSearchInput.addEventListener('input', (e) => {
-        // Просто перерисовываем левую колонку с новым фильтром
         renderProductPicker(e.target.value);
     });
 }
 
-// Хелпер для отрисовки выбора товаров
 function renderProductPicker(query = '') {
     if (!els.searchResults) return;
-
     query = query.toLowerCase().trim();
     
-    // Фильтруем кеш (если query пусто, вернется весь список)
     let filtered = allProductsCache.filter(p => p.name.toLowerCase().includes(query));
-    
-    // Сортируем: сначала дешевые
     filtered.sort((a, b) => a.price - b.price);
 
     if (filtered.length === 0) {
@@ -211,26 +254,20 @@ function renderProductPicker(query = '') {
     }
 }
 
-// 4. Добавление в список
+// Добавление в список
 if(els.searchResults) {
     els.searchResults.addEventListener('click', async (e) => {
         const btn = e.target.closest('.btn-add-to-list');
         if (!btn) return;
-        
         e.preventDefault();
-
         try {
             await api.lists.addItem(currentListId, btn.dataset.product, 1);
-            // Не очищаем поиск, чтобы можно было добавить еще товаров
-            // els.productSearchInput.value = ''; 
             await refreshActiveList();
-        } catch (err) {
-            alert("Ошибка добавления: " + err.message);
-        }
+        } catch (err) { alert(err.message); }
     });
 }
 
-// 5. Управление элементами списка (Чекбокс, Удаление)
+// Управление пунктами списка
 if(els.activeListItems) {
     els.activeListItems.addEventListener('click', async (e) => {
         if (e.target.classList.contains('check-item')) {
@@ -245,12 +282,12 @@ if(els.activeListItems) {
     });
 }
 
-// === HANDLERS: ТОВАРЫ (Старые) ===
+
+// === HANDLERS: СОЗДАНИЕ ТОВАРОВ И МАГАЗИНОВ ===
 
 if (els.productForm) {
     els.productForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
         const rawData = {
             name: els.inputs.name.value,
             shop_id: parseOptionalInt(els.inputs.shop.value),
@@ -297,16 +334,9 @@ if (els.shopList) {
     });
 }
 
-if (els.productList) {
-    els.productList.addEventListener('click', (e) => {
-        const btn = e.target.closest('.btn-edit');
-        if (!btn) return;
-        const data = JSON.parse(btn.dataset.product);
-        fillForm(data);
-    });
-}
 
-// Helpers
+// === HELPERS ===
+
 function fillForm(p) {
     els.inputs.id.value = p.id;
     els.inputs.name.value = p.name;
