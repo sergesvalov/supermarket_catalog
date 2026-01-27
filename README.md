@@ -107,3 +107,69 @@ JSON
     Если ты меняешь модель Product в Python, убедись, что JS код на фронтенде обновлен соответственно (поля в fetch, отображение в таблице).
 
 Автор проекта: Serge Svalov & Google Gemini
+
+
+Supermarket Price Tracker & Shopping List
+1. Общее описание
+
+Цель: Веб-приложение для мониторинга цен на продукты в разных магазинах, ведения истории изменений цен и формирования списков покупок с возможностью отправки в Telegram. Стек:
+
+    Backend: Python 3.10+, FastAPI, SQLModel (SQLAlchemy + Pydantic), SQLite.
+
+    Frontend: Vanilla JS (модульная структура ES6), HTML5, Bootstrap 5.
+
+    Infrastructure: Docker, Jenkins (CI/CD).
+
+2. Архитектура данных (Database Schema)
+
+Проект использует реляционную БД со следующими сущностями:
+
+    Shop: id, name.
+
+    Product: id, name, price, weight, calories, quantity, shop_id (FK), updated_at.
+
+    PriceHistory: id, product_id (FK), price, created_at.
+
+    ShoppingList: id, name, created_at.
+
+    ShoppingListItem: id, shopping_list_id (FK), product_id (FK), quantity, is_bought.
+
+    TelegramConfig & TelegramUser: Настройки бота и ID чатов для рассылки.
+
+3. Структура API (Backend Endpoints)
+
+    /products: CRUD операций с товарами. Важна подгрузка связей shop и history через selectinload.
+
+    /lists: Управление списками. Эндпоинт /lists/items отвечает за наполнение списков.
+
+    /telegram/send/{list_id}: Формирует HTML-отчет и отправляет его через BackgroundTasks.
+
+    /catalog: Публичный эндпоинт для экспорта актуальных цен.
+
+4. Структура Frontend (Modules)
+
+Код разделен на модули для оптимизации:
+
+    api.js: Все fetch запросы к бэкенду.
+
+    state.js: Глобальное хранилище данных в памяти (кеш товаров).
+
+    modules/products.js: Логика создания товаров.
+
+    modules/lists.js: Управление списками (открытие, добавление товаров через "Picker").
+
+    modules/telegram.js: Настройка интеграции.
+
+5. Известные технические особенности и проблемы
+
+    Lazy Loading: SQLModel по умолчанию не грузит связанные объекты. Требуется явный session.refresh(obj, ["relation"]) после коммита.
+
+    Concurrency: Использование BackgroundTasks для внешних API (Telegram), чтобы избежать блокировки Uvicorn.
+
+    Security: Необходимость экранирования спецсимволов (html.escape) для корректной работы parse_mode="HTML" в Telegram.
+
+    UI/UX: Реализован "умный поиск" (фильтрация) по всему каталогу при добавлении в список.
+
+6. Текущая задача для анализа
+
+    Блокирующая проблема: При нажатии кнопки «Добавить в список» во фронтенде визуально ничего не происходит, и товар не появляется в БД в таблице ShoppingListItem. Требуется проверка цепочки: UI (Event Listener) -> API.js (Request) -> Backend (Endpoint) -> DB (Commit).
