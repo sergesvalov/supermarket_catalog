@@ -9,38 +9,27 @@ from pydantic import field_validator
 from sqlalchemy.orm import selectinload
 
 # ===========================
-# 1. МОДЕЛИ ДАННЫХ (БД)
+# 1. МОДЕЛИ ДАННЫХ (Base / Create / DB)
 # ===========================
 
-class Shop(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+# --- Shop ---
+class ShopBase(SQLModel):
     name: str = Field(index=True, unique=True)
 
-class PriceHistory(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    product_id: int = Field(foreign_key="product.id")
-    price: float
-    created_at: datetime = Field(default_factory=datetime.now)
-    product: "Product" = Relationship(back_populates="history")
+class ShopCreate(ShopBase):
+    pass
 
-class Product(SQLModel, table=True):
+class Shop(ShopBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+
+# --- Product ---
+class ProductBase(SQLModel):
     name: str
     price: float
     weight: Optional[float] = Field(default=None)
     calories: Optional[float] = Field(default=None)
     quantity: Optional[int] = Field(default=None)
-    updated_at: datetime = Field(default_factory=datetime.now)
-    
-    # Связь с магазином
     shop_id: Optional[int] = Field(default=None, foreign_key="shop.id")
-    shop: Optional[Shop] = Relationship()
-    
-    # Связь с историей цен
-    history: List[PriceHistory] = Relationship(
-        back_populates="product", 
-        sa_relationship_kwargs={"cascade": "all, delete", "lazy": "selectin"}
-    )
 
     @field_validator('price', 'weight', 'calories', 'quantity')
     @classmethod
@@ -49,32 +38,59 @@ class Product(SQLModel, table=True):
             raise ValueError('Значение не может быть отрицательным')
         return v
 
-# --- НОВАЯ МОДЕЛЬ ДЛЯ СОЗДАНИЯ (DTO) ---
-# Используется только для приема данных от фронтенда
-class ShoppingListItemCreate(SQLModel):
-    shopping_list_id: int
-    product_id: int
-    quantity: int = 1
+class ProductCreate(ProductBase):
+    pass
 
-# Основная модель БД
-class ShoppingListItem(SQLModel, table=True):
+class Product(ProductBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    updated_at: datetime = Field(default_factory=datetime.now)
+    
+    # Связи (только в DB модели)
+    shop: Optional[Shop] = Relationship()
+    history: List["PriceHistory"] = Relationship(
+        back_populates="product", 
+        sa_relationship_kwargs={"cascade": "all, delete", "lazy": "selectin"}
+    )
+
+# --- PriceHistory ---
+class PriceHistory(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    product_id: int = Field(foreign_key="product.id")
+    price: float
+    created_at: datetime = Field(default_factory=datetime.now)
+    product: Product = Relationship(back_populates="history")
+
+# --- Shopping List Item ---
+class ShoppingListItemBase(SQLModel):
     shopping_list_id: int = Field(foreign_key="shoppinglist.id")
     product_id: int = Field(foreign_key="product.id")
     quantity: int = Field(default=1)
+
+class ShoppingListItemCreate(ShoppingListItemBase):
+    pass
+
+class ShoppingListItem(ShoppingListItemBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
     is_bought: bool = Field(default=False)
     
-    # Связь оставляем Optional, чтобы не мешала при сериализации, если не подгружена
+    # Связь optional, чтобы не ломать чтение из БД
     product: Optional[Product] = Relationship(default=None)
 
-class ShoppingList(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+# --- Shopping List ---
+class ShoppingListBase(SQLModel):
     name: str
+
+class ShoppingListCreate(ShoppingListBase):
+    pass
+
+class ShoppingList(ShoppingListBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=datetime.now)
     items: List[ShoppingListItem] = Relationship(
         sa_relationship_kwargs={"cascade": "all, delete"}
     )
 
+# --- Telegram (Простые модели, оставим как есть) ---
 class TelegramConfig(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     bot_token: str
@@ -84,7 +100,7 @@ class TelegramUser(SQLModel, table=True):
     name: str
     chat_id: str
 
-# Модель для публичного API
+# --- API Catalog Export ---
 class CatalogExport(SQLModel):
     product: str
     price: float
@@ -98,7 +114,6 @@ class CatalogExport(SQLModel):
 
 os.makedirs("data", exist_ok=True)
 sqlite_url = "sqlite:///data/database.db"
-# Добавляем check_same_thread для SQLite
 engine = create_engine(sqlite_url, connect_args={"check_same_thread": False})
 
 def get_session():
@@ -145,7 +160,8 @@ def get_shops(session: Session = Depends(get_session)):
     return session.exec(select(Shop).order_by(Shop.name)).all()
 
 @app.post("/shops", response_model=Shop)
-def create_shop(shop: Shop, session: Session = Depends(get_session)):
+def create_shop(shop_in: ShopCreate, session: Session = Depends(get_session)):
+    shop = Shop.from_orm(shop_in)
     session.add(shop)
     session.commit()
     session.refresh(shop)
@@ -169,8 +185,11 @@ def get_products(session: Session = Depends(get_session)):
     return session.exec(query).all()
 
 @app.post("/products", response_model=Product)
-def create_product(product: Product, session: Session = Depends(get_session)):
+def create_product(product_in: ProductCreate, session: Session = Depends(get_session)):
+    # Создаем DB модель из входной Create модели
+    product = Product.from_orm(product_in)
     product.updated_at = datetime.now()
+    
     session.add(product)
     session.commit()
     session.refresh(product)
@@ -178,6 +197,7 @@ def create_product(product: Product, session: Session = Depends(get_session)):
     if product.shop_id:
         session.refresh(product, ["shop"])
     
+    # История цен
     history = PriceHistory(product_id=product.id, price=product.price)
     session.add(history)
     session.commit()
@@ -185,15 +205,17 @@ def create_product(product: Product, session: Session = Depends(get_session)):
     return product
 
 @app.put("/products/{product_id}", response_model=Product)
-def update_product(product_id: int, product_data: Product, session: Session = Depends(get_session)):
+def update_product(product_id: int, product_data: ProductCreate, session: Session = Depends(get_session)):
     db_product = session.get(Product, product_id)
     if not db_product:
         raise HTTPException(status_code=404, detail="Товар не найден")
     
     price_changed = abs(db_product.price - product_data.price) > 0.001
     
-    for key, value in product_data.dict(exclude_unset=True).items():
-        if key != 'id': setattr(db_product, key, value)
+    # Обновляем поля
+    product_dict = product_data.dict(exclude_unset=True)
+    for key, value in product_dict.items():
+        setattr(db_product, key, value)
     
     db_product.updated_at = datetime.now()
     session.add(db_product)
@@ -223,7 +245,9 @@ def get_list(list_id: int, session: Session = Depends(get_session)):
     return res
 
 @app.post("/lists", response_model=ShoppingList)
-def create_list(shopping_list: ShoppingList, session: Session = Depends(get_session)):
+def create_list(list_in: ShoppingListCreate, session: Session = Depends(get_session)):
+    # Теперь мы принимаем ShoppingListCreate (где только name), а не ShoppingList (где требуются items)
+    shopping_list = ShoppingList.from_orm(list_in)
     session.add(shopping_list)
     session.commit()
     session.refresh(shopping_list)
@@ -237,10 +261,8 @@ def delete_list(list_id: int, session: Session = Depends(get_session)):
         session.commit()
     return {"ok": True}
 
-# ВАЖНОЕ ИЗМЕНЕНИЕ: Принимаем ShoppingListItemCreate, возвращаем ShoppingListItem
 @app.post("/lists/items", response_model=ShoppingListItem)
 def add_item_to_list(item_in: ShoppingListItemCreate, session: Session = Depends(get_session)):
-    # Проверяем существование записи
     existing = session.exec(select(ShoppingListItem).where(
         ShoppingListItem.shopping_list_id == item_in.shopping_list_id,
         ShoppingListItem.product_id == item_in.product_id
@@ -253,7 +275,6 @@ def add_item_to_list(item_in: ShoppingListItemCreate, session: Session = Depends
         session.refresh(existing)
         return existing
     else:
-        # Создаем модель БД из входных данных
         new_item = ShoppingListItem.from_orm(item_in)
         session.add(new_item)
         session.commit()
@@ -277,7 +298,7 @@ def delete_item(item_id: int, session: Session = Depends(get_session)):
         session.commit()
     return {"ok": True}
 
-# --- Telegram Настройки ---
+# --- Telegram Endpoints (оставлены без изменений) ---
 @app.get("/telegram/config", response_model=Optional[TelegramConfig])
 def get_tg_config(session: Session = Depends(get_session)):
     return session.exec(select(TelegramConfig)).first()
