@@ -56,7 +56,8 @@ class ShoppingListItem(SQLModel, table=True):
     quantity: int = Field(default=1)
     is_bought: bool = Field(default=False)
     
-    product: Product = Relationship()
+    # ИСПРАВЛЕНИЕ: Добавлен Optional и default=None, чтобы API не требовал объект product при создании
+    product: Optional["Product"] = Relationship(default=None)
 
 class ShoppingList(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -89,6 +90,7 @@ class CatalogExport(SQLModel):
 
 os.makedirs("data", exist_ok=True)
 sqlite_url = "sqlite:///data/database.db"
+# Рекомендую добавить PRAGMA foreign_keys=ON в будущем для целостности SQLite
 engine = create_engine(sqlite_url, connect_args={"check_same_thread": False})
 
 def get_session():
@@ -231,17 +233,26 @@ def delete_list(list_id: int, session: Session = Depends(get_session)):
 
 @app.post("/lists/items", response_model=ShoppingListItem)
 def add_item_to_list(item: ShoppingListItem, session: Session = Depends(get_session)):
+    # Проверяем, есть ли товар уже в списке
     existing = session.exec(select(ShoppingListItem).where(
         ShoppingListItem.shopping_list_id == item.shopping_list_id,
         ShoppingListItem.product_id == item.product_id
     )).first()
+    
     if existing:
         existing.quantity += item.quantity
         session.add(existing)
+        # Для возврата обновленного объекта нам нужно, чтобы он соответствовал модели ответа
+        # Но item у нас новый, а existing - из БД. 
+        # Вернем existing, так как он актуален.
+        session.commit()
+        session.refresh(existing)
+        return existing
     else:
         session.add(item)
-    session.commit()
-    return item
+        session.commit()
+        session.refresh(item)
+        return item
 
 @app.patch("/lists/items/{item_id}")
 def toggle_item(item_id: int, is_bought: bool, session: Session = Depends(get_session)):
@@ -311,12 +322,18 @@ def send_to_tg(list_id: int, bg: BackgroundTasks, session: Session = Depends(get
     )
     sl = session.exec(query).first()
     
+    if not sl:
+        raise HTTPException(status_code=404, detail="Список не найден")
+
     # Формирование текста с экранированием HTML
     title = html.escape(sl.name)
     msg = [f"🛒 <b>{title}</b>\n"]
     total = 0
     for i in sl.items:
         p = i.product
+        # Защита от удаленных товаров
+        if not p: continue
+        
         total += (p.price * i.quantity)
         shop = f"({html.escape(p.shop.name)})" if p.shop else ""
         icon = "✅" if i.is_bought else "▫️"
