@@ -36,7 +36,9 @@ class Product(ProductBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     updated_at: datetime = Field(default_factory=datetime.now)
     
+    # Исправлено: убран default=None, так как Relationship() его не поддерживает
     shop: Optional[Shop] = Relationship()
+    
     history: List["PriceHistory"] = Relationship(
         back_populates="product", 
         sa_relationship_kwargs={"cascade": "all, delete", "lazy": "selectin"}
@@ -63,7 +65,10 @@ class ShoppingListItem(ShoppingListItemBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     is_bought: bool = Field(default=False)
     
-    product: Optional[Product] = Relationship(default=None)
+    # 🛑 ИСПРАВЛЕНИЕ ЗДЕСЬ:
+    # Было: product: Optional[Product] = Relationship(default=None)
+    # Стало:
+    product: Optional[Product] = Relationship()
 
 # --- Shopping List ---
 class ShoppingListBase(SQLModel):
