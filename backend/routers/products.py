@@ -24,14 +24,21 @@ def create_product(product_in: ProductCreate, session: Session = Depends(get_ses
     session.commit()
     session.refresh(product)
     
+    # Load shop relationship if exists
     if product.shop_id:
         session.refresh(product, ["shop"])
     
+    # Create price history
     history = PriceHistory(product_id=product.id, price=product.price)
     session.add(history)
     session.commit()
-    session.refresh(product, ["history"])
-    return product
+    
+    # Reload with all relationships
+    query = select(Product).where(Product.id == product.id).options(
+        selectinload(Product.shop),
+        selectinload(Product.history)
+    )
+    return session.exec(query).first()
 
 @router.put("/{product_id}", response_model=Product)
 def update_product(product_id: int, product_data: ProductCreate, session: Session = Depends(get_session)):
