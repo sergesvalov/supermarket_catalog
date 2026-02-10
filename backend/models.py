@@ -79,6 +79,12 @@ class ShoppingListItem(ShoppingListItemBase, table=True):
     # Стало:
     product: Optional[Product] = Relationship()
 
+# Response model for list item
+class ShoppingListItemResponse(ShoppingListItemBase):
+    id: int
+    is_bought: bool
+    product: Optional[ProductResponse] = None
+
 # --- Shopping List ---
 class ShoppingListBase(SQLModel):
     name: str
@@ -92,6 +98,12 @@ class ShoppingList(ShoppingListBase, table=True):
     items: List[ShoppingListItem] = Relationship(
         sa_relationship_kwargs={"cascade": "all, delete"}
     )
+
+# Response model for shopping list
+class ShoppingListResponse(ShoppingListBase):
+    id: int
+    created_at: datetime
+    items: List[ShoppingListItemResponse] = []
 
 # --- Telegram ---
 class TelegramConfig(SQLModel, table=True):
