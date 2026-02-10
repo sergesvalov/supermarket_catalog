@@ -10,7 +10,11 @@ router = APIRouter(prefix="/lists", tags=["Shopping Lists"])
 
 @router.get("", response_model=List[ShoppingListResponse])
 async def get_lists(session: AsyncSession = Depends(get_session)):
-    result = await session.execute(select(ShoppingList).order_by(ShoppingList.created_at.desc()))
+    query = select(ShoppingList).options(
+        selectinload(ShoppingList.items).selectinload(ShoppingListItem.product).selectinload(Product.shop),
+        selectinload(ShoppingList.items).selectinload(ShoppingListItem.product).selectinload(Product.history)
+    ).order_by(ShoppingList.created_at.desc())
+    result = await session.execute(query)
     return result.scalars().all()
 
 @router.get("/{list_id}", response_model=ShoppingListResponse)
@@ -29,6 +33,11 @@ async def create_list(list_in: ShoppingListCreate, session: AsyncSession = Depen
     session.add(shopping_list)
     await session.commit()
     await session.refresh(shopping_list)
+    # Explicitly load empty items to satisfy response model without db query
+    # await session.refresh(shopping_list, ["items"]) # This would do a query
+    # Since it's new, we can just set it if needed, or rely on refresh. 
+    # Actually, better to refresh it to be safe and consistent with async
+    await session.refresh(shopping_list, ["items"])
     return shopping_list
 
 @router.delete("/{list_id}")
