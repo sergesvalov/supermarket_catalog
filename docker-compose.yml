@@ -3,7 +3,8 @@ services:
     build: ./backend
     container_name: catalog-backend
     volumes:
-      - ./backend_data:/app/data
+      - /opt/supermarket_catalog/backend:/app
+      - /opt/supermarket_catalog/backend_data:/app/data
     restart: always
 
   nginx:
@@ -14,7 +15,7 @@ services:
       # СТАЛО: (Слева — ваш порт, Справа — порт внутри контейнера)
       - "8040:80"
     volumes:
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
-      - ./frontend:/usr/share/nginx/html
+      - /opt/supermarket_catalog/nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - /opt/supermarket_catalog/frontend:/usr/share/nginx/html
     depends_on:
       - backend

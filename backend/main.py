@@ -1,5 +1,4 @@
 from fastapi import FastAPI
-# Force reload
 from sqlmodel import SQLModel
 
 # Импорт базы и роутеров
