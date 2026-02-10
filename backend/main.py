@@ -3,7 +3,7 @@ from sqlmodel import SQLModel
 
 # Импорт базы и роутеров
 from database import engine
-from routers import products, shops, lists, telegram, catalog
+from routers import products, shops, lists, telegram, catalog, admin
 
 app = FastAPI(root_path="/api")
 
@@ -18,3 +18,4 @@ app.include_router(shops.router)
 app.include_router(lists.router)
 app.include_router(telegram.router)
 app.include_router(catalog.router)
+app.include_router(admin.router)

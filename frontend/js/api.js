@@ -56,5 +56,9 @@ export const api = {
         getUsers: () => request('/telegram/users'),
         addUser: (name, chat_id) => request('/telegram/users', 'POST', { name, chat_id }),
         deleteUser: (id) => request(`/telegram/users/${id}`, 'DELETE')
+    },
+    admin: {
+        getConfig: () => request('/admin/config'),
+        saveConfig: (currency) => request('/admin/config', 'POST', { currency })
     }
 };

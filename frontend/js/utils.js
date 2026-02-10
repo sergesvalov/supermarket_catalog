@@ -1,5 +1,11 @@
+let currentCurrency = '€';
+
+export function setCurrency(symbol) {
+    currentCurrency = symbol;
+}
+
 export function formatCurrency(value) {
-    return parseFloat(value).toFixed(2) + ' €';
+    return parseFloat(value).toFixed(2) + ' ' + currentCurrency;
 }
 
 export function formatDate(dateString) {

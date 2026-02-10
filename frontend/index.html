@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,34 +8,54 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <style>
-        .list-card:hover { transform: translateY(-2px); transition: 0.2s; border-color: #0d6efd; }
-        .cursor-pointer { cursor: pointer; }
-        .scrollable-list { max-height: 60vh; overflow-y: auto; }
+        .list-card:hover {
+            transform: translateY(-2px);
+            transition: 0.2s;
+            border-color: #0d6efd;
+        }
+
+        .cursor-pointer {
+            cursor: pointer;
+        }
+
+        .scrollable-list {
+            max-height: 60vh;
+            overflow-y: auto;
+        }
     </style>
 </head>
+
 <body class="bg-light">
     <div class="container py-5">
         <h2 class="mb-4">🛒 Каталог Цен (EUR)</h2>
 
         <ul class="nav nav-pills mb-4" id="pills-tab" role="tablist">
             <li class="nav-item">
-                <button class="nav-link active" id="pills-products-tab" data-bs-toggle="pill" data-bs-target="#pills-products">📦 Товары</button>
+                <button class="nav-link active" id="pills-products-tab" data-bs-toggle="pill"
+                    data-bs-target="#pills-products">📦 Товары</button>
             </li>
             <li class="nav-item">
-                <button class="nav-link" id="pills-lists-tab" data-bs-toggle="pill" data-bs-target="#pills-lists">📝 Списки покупок</button>
+                <button class="nav-link" id="pills-lists-tab" data-bs-toggle="pill" data-bs-target="#pills-lists">📝
+                    Списки покупок</button>
             </li>
             <li class="nav-item">
-                <button class="nav-link" id="pills-shops-tab" data-bs-toggle="pill" data-bs-target="#pills-shops">🏪 Магазины</button>
+                <button class="nav-link" id="pills-shops-tab" data-bs-toggle="pill" data-bs-target="#pills-shops">🏪
+                    Магазины</button>
             </li>
             <li class="nav-item">
                 <button class="nav-link" id="pills-tg-tab" data-bs-toggle="pill" data-bs-target="#pills-tg">
                     <i class="bi bi-telegram"></i> Telegram
                 </button>
             </li>
+            <li class="nav-item">
+                <button class="nav-link" id="pills-admin-tab" data-bs-toggle="pill" data-bs-target="#pills-admin">
+                    <i class="bi bi-gear"></i> Админ
+                </button>
+            </li>
         </ul>
 
         <div class="tab-content" id="pills-tabContent">
-            
+
             <div class="tab-pane fade show active" id="pills-products">
                 <div class="row">
                     <div class="col-md-4">
@@ -63,16 +84,19 @@
                                     </div>
                                     <div class="col-4">
                                         <label class="form-label text-muted small">Ккал</label>
-                                        <input type="number" min="0" id="calories" class="form-control" placeholder="...">
+                                        <input type="number" min="0" id="calories" class="form-control"
+                                            placeholder="...">
                                     </div>
                                     <div class="col-4">
                                         <label class="form-label text-muted small">Шт.</label>
-                                        <input type="number" min="0" id="quantity" class="form-control" placeholder="...">
+                                        <input type="number" min="0" id="quantity" class="form-control"
+                                            placeholder="...">
                                     </div>
                                 </div>
                                 <div class="d-grid gap-2">
                                     <button type="submit" class="btn btn-success" id="submitBtn">Добавить</button>
-                                    <button type="button" class="btn btn-secondary d-none" id="cancelBtn">Отмена</button>
+                                    <button type="button" class="btn btn-secondary d-none"
+                                        id="cancelBtn">Отмена</button>
                                 </div>
                             </form>
                         </div>
@@ -88,7 +112,8 @@
                     <div class="row mb-4">
                         <div class="col-md-6">
                             <form id="newListForm" class="d-flex gap-2">
-                                <input type="text" id="newListName" class="form-control" placeholder="Название списка" required>
+                                <input type="text" id="newListName" class="form-control" placeholder="Название списка"
+                                    required>
                                 <button type="submit" class="btn btn-primary text-nowrap">Создать список</button>
                             </form>
                         </div>
@@ -101,7 +126,7 @@
                         <button class="btn btn-outline-secondary" id="backToListsBtn">
                             <i class="bi bi-arrow-left"></i> Назад
                         </button>
-                        
+
                         <button class="btn btn-outline-primary" id="btnSendTg">
                             <i class="bi bi-telegram"></i> В Telegram
                         </button>
@@ -114,7 +139,8 @@
                         <div class="col-md-5">
                             <div class="card p-3 shadow-sm border-0 mb-3">
                                 <h5>🔍 Добавить товар</h5>
-                                <input type="text" id="productSearchInput" class="form-control mb-2" placeholder="Фильтр по названию...">
+                                <input type="text" id="productSearchInput" class="form-control mb-2"
+                                    placeholder="Фильтр по названию...">
                                 <div id="searchResults" class="list-group scrollable-list"></div>
                             </div>
                         </div>
@@ -134,7 +160,8 @@
                         <div class="card p-3">
                             <h5>Управление магазинами</h5>
                             <form id="shopForm" class="d-flex gap-2 mb-3">
-                                <input type="text" id="newShopName" class="form-control" placeholder="Название магазина" required>
+                                <input type="text" id="newShopName" class="form-control" placeholder="Название магазина"
+                                    required>
                                 <button type="submit" class="btn btn-primary">Создать</button>
                             </form>
                             <ul class="list-group" id="shopList"></ul>
@@ -151,7 +178,8 @@
                             <form id="tgConfigForm">
                                 <div class="mb-3">
                                     <label class="form-label small text-muted">Token (от @BotFather)</label>
-                                    <input type="text" id="tgToken" class="form-control" placeholder="123456:ABC-DEF..." required>
+                                    <input type="text" id="tgToken" class="form-control" placeholder="123456:ABC-DEF..."
+                                        required>
                                 </div>
                                 <button type="submit" class="btn btn-primary">Сохранить токен</button>
                             </form>
@@ -164,10 +192,35 @@
                             <h5>👥 Получатели</h5>
                             <form id="tgUserForm" class="d-flex gap-2 mb-3">
                                 <input type="text" id="tgUserName" class="form-control" placeholder="Имя" required>
-                                <input type="text" id="tgUserChatId" class="form-control" placeholder="Chat ID" required>
+                                <input type="text" id="tgUserChatId" class="form-control" placeholder="Chat ID"
+                                    required>
                                 <button type="submit" class="btn btn-success">+</button>
                             </form>
                             <ul class="list-group" id="tgUserList"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Administration Tab -->
+            <div class="tab-pane fade" id="pills-admin">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card p-3 shadow-sm">
+                            <h5>⚙️ Администрирование</h5>
+                            <form id="adminConfigForm">
+                                <div class="mb-3">
+                                    <label class="form-label">Валюта приложения</label>
+                                    <select id="currencySelect" class="form-select">
+                                        <option value="EUR">Euro (€)</option>
+                                        <option value="USD">US Dollar ($)</option>
+                                        <option value="RUB">Rubles (₽)</option>
+                                    </select>
+                                    <div class="form-text text-muted">Изменение валюты обновит отображение цен во всем
+                                        приложении.</div>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Сохранить настройки</button>
+                            </form>
                         </div>
                     </div>
                 </div>
@@ -194,4 +247,5 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script type="module" src="js/app.js"></script>
 </body>
+
 </html>

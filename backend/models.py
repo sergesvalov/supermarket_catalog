@@ -101,3 +101,8 @@ class CatalogExport(SQLModel):
     currency: str = "EUR"
     shop: Optional[str] = None
     updated_at: datetime
+
+# --- App Configuration ---
+class AppConfig(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    currency: str = Field(default="EUR")
