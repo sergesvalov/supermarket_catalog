@@ -32,6 +32,9 @@ export function ProductCard(p) {
                     <button class="btn btn-sm btn-outline-primary btn-edit" data-product="${productJson}">
                         <i class="bi bi-pencil-fill"></i>
                     </button>
+                    <button class="btn btn-sm btn-outline-danger btn-delete-product" data-id="${p.id}" title="Удалить">
+                        <i class="bi bi-trash"></i>
+                    </button>
                 </div>
             </div>
         </div>

@@ -4,7 +4,7 @@ from sqlalchemy.orm import selectinload
 from typing import List
 from datetime import datetime
 from database import get_session
-from models import Product, ProductCreate, PriceHistory
+from models import Product, ProductCreate, PriceHistory, ShoppingListItem
 
 router = APIRouter(prefix="/products", tags=["Products"])
 
@@ -57,3 +57,20 @@ def update_product(product_id: int, product_data: ProductCreate, session: Sessio
         session.refresh(db_product, ["shop"])
     session.refresh(db_product, ["history"])
     return db_product
+
+@router.delete("/{product_id}", status_code=204)
+def delete_product(product_id: int, session: Session = Depends(get_session)):
+    product = session.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Товар не найден")
+    
+    # Сначала удаляем записи из списков покупок, чтобы избежать FK constraint error
+    # (если в БД не настроен ON DELETE CASCADE)
+    statement = select(ShoppingListItem).where(ShoppingListItem.product_id == product_id)
+    results = session.exec(statement)
+    for item in results:
+        session.delete(item)
+        
+    session.delete(product)
+    session.commit()
+    return None

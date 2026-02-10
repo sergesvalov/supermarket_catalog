@@ -20,7 +20,7 @@ export function initProducts(refreshCallback) {
     titleEl = document.getElementById('formTitle');
     submitBtn = document.getElementById('submitBtn');
     cancelBtn = document.getElementById('cancelBtn');
-    
+
     if (!formEl) return;
 
     // Сбор инпутов
@@ -45,13 +45,26 @@ export function initProducts(refreshCallback) {
         const btnHistory = e.target.closest('.btn-history');
         if (btnHistory) {
             showHistoryModal(btnHistory.dataset.name, JSON.parse(btnHistory.dataset.history));
+            return;
+        }
+
+        const btnDelete = e.target.closest('.btn-delete-product');
+        if (btnDelete) {
+            if (confirm('Вы уверены, что хотите удалить этот товар?')) {
+                api.products.delete(btnDelete.dataset.id)
+                    .then(() => {
+                        // Обновляем список
+                        if (refreshCallback) refreshCallback();
+                    })
+                    .catch(err => alert('Ошибка удаления: ' + err.message));
+            }
         }
     });
 
     // 2. Обработка формы
     formEl.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         // ВАЖНО: Четкое получение shop_id
         const shopIdValue = inputs.shop.value;
 
@@ -77,8 +90,8 @@ export function initProducts(refreshCallback) {
             }
             resetForm();
             if (refreshCallback) await refreshCallback();
-        } catch (err) { 
-            alert("Ошибка сохранения: " + err.message); 
+        } catch (err) {
+            alert("Ошибка сохранения: " + err.message);
         }
     });
 

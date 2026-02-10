@@ -30,7 +30,8 @@ export const api = {
     products: {
         list: () => request('/products'),
         create: (data) => request('/products', 'POST', data),
-        update: (id, data) => request(`/products/${id}`, 'PUT', data)
+        update: (id, data) => request(`/products/${id}`, 'PUT', data),
+        delete: (id) => request(`/products/${id}`, 'DELETE')
     },
     shops: {
         list: () => request('/shops'),
