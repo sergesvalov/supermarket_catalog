@@ -1,0 +1,109 @@
+:root {
+  --primary-color: #4f46e5;
+  --primary-hover: #4338ca;
+  --bg-color: #f3f4f6;
+  --card-bg: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.3);
+  --text-main: #1f2937;
+  --text-secondary: #6b7280;
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --transition-fast: 0.2s ease;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  background-image: 
+    radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
+    radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
+    radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
+  min-height: 100vh;
+}
+
+/* Glassmorphism Card */
+.glass-card {
+  background: var(--card-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  transition: transform var(--transition-fast);
+}
+
+.glass-card:hover {
+  /* transform: translateY(-2px); */
+}
+
+/* Buttons */
+.btn-premium {
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-premium:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+  color: white;
+}
+
+.btn-premium:active {
+  transform: scale(0.98);
+}
+
+/* Inputs */
+.form-control {
+  border-radius: var(--radius-md);
+  border: 1px solid #e5e7eb;
+  padding: 0.6rem 1rem;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.form-control:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+/* List Items */
+.list-item-premium {
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  transition: background-color var(--transition-fast);
+}
+
+.list-item-premium:last-child {
+  border-bottom: none;
+}
+
+.list-item-premium:hover {
+  background-color: rgba(255,255,255,0.5);
+}
+
+/* Navigation */
+.nav-pills .nav-link {
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-weight: 500;
+  padding: 0.75rem 1.25rem;
+  transition: all var(--transition-fast);
+}
+
+.nav-pills .nav-link.active {
+  background-color: var(--primary-color);
+  color: white;
+  box-shadow: var(--shadow-sm);
+}
+
+.nav-pills .nav-link:hover:not(.active) {
+  background-color: rgba(255,255,255,0.5);
+  color: var(--primary-color);
+}

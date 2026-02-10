@@ -6,15 +6,15 @@ services:
       - /opt/supermarket_catalog/backend_data:/app/data
     restart: always
 
-  nginx:
-    image: nginx:latest
-    container_name: catalog-nginx
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: catalog-frontend
     ports:
-      # БЫЛО: - "80:80"
-      # СТАЛО: (Слева — ваш порт, Справа — порт внутри контейнера)
       - "8040:80"
     volumes:
-      - /opt/supermarket_catalog/nginx/default.conf:/etc/nginx/conf.d/default.conf
-      - /opt/supermarket_catalog/frontend:/usr/share/nginx/html
+      # Mount the nginx config so we can tweak routing without rebuilding
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
     depends_on:
       - backend
