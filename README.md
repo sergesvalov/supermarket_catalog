@@ -1,7 +1,7 @@
 # 🛒 Supermarket Price Catalog (Microservice)
 
 Простой и эффективный микросервис для мониторинга цен на продукты.
-Проект построен по архитектуре SPA (Single Page Application) с разделением на Backend (API) и Frontend (Static), завернутых в Docker.
+Проект построен по архитектуре **SPA (Single Page Application)** с разделением на Backend (API) и Frontend (React), завернутых в Docker.
 
 > **🤖 Внимание для AI (Google Gemini):**
 > Этот проект предназначен для доработки и поддержки искусственным интеллектом.
@@ -11,10 +11,10 @@
 
 ## 🛠 Технологический стек
 
-* **Backend:** Python 3.11 (Slim), FastAPI, SQLModel (SQLAlchemy wrapper).
+* **Backend:** Python 3.11 (Slim), **FastAPI** (Async), **SQLModel** (SQLAlchemy wrapper), **aiosqlite**.
 * **Database:** SQLite (хранится в `/app/data/database.db` внутри контейнера, мапится через Docker Volume).
-* **Frontend:** HTML5, Vanilla JavaScript (ES6+), Bootstrap 5.
-* **Infrastructure:** Docker, Docker Compose, Nginx (Reverse Proxy & Static Server).
+* **Frontend:** **React 18**, **Vite**, Bootstrap 5 (Glassmorphism UI).
+* **Infrastructure:** Docker, Docker Compose, Nginx (Production), Vite Dev Server (Development).
 * **CI/CD:** Jenkins Pipeline.
 
 ---
@@ -23,161 +23,89 @@
 
 ```text
 supermarket_catalog/
-├── backend/                # Сервис API
-│   ├── main.py             # Точка входа FastAPI
-│   ├── requirements.txt    # Зависимости Python
+├── backend/                # Сервис API (Async FastAPI)
+│   ├── main.py             # Точка входа API
+│   ├── models.py           # SQLModel схемы
+│   ├── routers/            # Эндпоинты (products, shops, lists...)
 │   └── Dockerfile          # Сборка бэкенда (python:slim)
-├── frontend/               # Статический фронтенд
-│   └── index.html          # SPA приложение (HTML + JS)
-├── nginx/                  # Конфигурация веб-сервера
-│   ├── default.conf        # Правила маршрутизации (Proxy pass)
-│   └── Dockerfile          # Сборка фронтенда (nginx:alpine)
-├── docker-compose.yml      # Оркестрация контейнеров
+├── frontend/               # React приложение
+│   ├── src/                # Исходный код React
+│   ├── vite.config.js      # Конфигурация сборщика
+│   ├── Dockerfile          # Dev Container (Vite)
+│   └── nginx/              # Конфиг Nginx для Prod
+│       └── Dockerfile      # Prod Container (Multi-stage build)
+├── docker-compose.yml      # Оркестрация контейнеров (Dev Profile)
 └── README.md               # Документация
+```
 
-🚀 Запуск и Установка
-Локальный запуск (Docker Compose)
+## 🚀 Запуск и Установка
 
-Для разработки и тестирования:
-Bash
+### Локальный запуск (Development)
 
-# Сборка и запуск в фоновом режиме
+Для разработки с Hot Reload (изменения в коде сразу видны):
+
+```bash
+# Сборка и запуск
 docker compose up -d --build
 
 # Просмотр логов
 docker compose logs -f
+```
 
-Сервис будет доступен по адресу: http://localhost:8040
-API Документация
+*   **Frontend**: http://localhost:8040 (Vite Dev Server)
+*   **Backend API**: http://localhost:8040/api/docs (Swagger UI)
 
-FastAPI автоматически генерирует Swagger UI:
+### Production (Jenkins / Nginx)
 
-    URL: http://localhost:8040/api/docs
+В продакшене используется `frontend/nginx/Dockerfile`, который выполняет **мульти-стейдж сборку**:
+1.  Компилирует React (`npm run build`).
+2.  Раздает статику через Nginx.
 
-🔌 API Endpoints
+---
 
-Все запросы идут с префиксом /api.
+## 🔌 API Endpoints
+
+Все запросы идут с префиксом `/api`. Бэкенд полностью **асинхронный** (`async/await`).
+
 | Метод  | Эндпоинт           | Описание                                      |
 |--------|-------------------|-----------------------------------------------|
 | GET    | /products         | Получить список всех товаров                 |
 | POST   | /products         | Добавить новый товар                         |
-| PUT    | /products/{id}    | Обновить товар                               |
+| PUT    | /products/{id}    | Обновить товар (цена, вес, магазин)          |
 | DELETE | /products/{id}    | Удалить товар из каталога                    |
 | GET    | /shops            | Получить список магазинов                    |
 | GET    | /lists            | Получить все списки покупок                  |
-| GET    | /admin/config     | Получить настройки приложения (валюта)       |
-| POST   | /admin/config     | Обновить настройки приложения                |
+| GET    | /admin/config     | Получить настройки (валюта)                  |
+| POST   | /telegram/send/{id}| Отправить список в Telegram (Background Task)|
 
-Модель данных Product (JSON):
-```json
-{
-  "name": "Молоко",
-  "shop_id": 1,
-  "price": 2.50,
-  "weight": 1000,
-  "calories": 64,
-  "quantity": 1
-}
-```
+---
 
-🧠 Instructions for AI Context (Google Gemini)
+## 🧠 Instructions for AI Context (Google Gemini)
 
 Если ты (AI) читаешь этот файл для внесения изменений в код, следуй этим строгим правилам:
-1. Архитектурные принципы
 
-    Backend-First: Бэкенд ничего не знает о HTML. Он отдает только JSON. Не используй Jinja2Templates в Python коде.
+### 1. Архитектурные принципы
+*   **Backend-First**: Бэкенд отдает только JSON. Никакого HTML рендеринга (Jinja2).
+*   **Async Everywhere**: Весь I/O на бэкенде должен быть асинхронным (используй `await`, `select`, `AsyncSession`).
+*   **Database**: Используем `aiosqlite`. Добавляй индексы (`index=True`) для полей, по которым идет поиск/сортировка.
 
-    Nginx Routing: Nginx раздает статику с корня / и проксирует запросы /api/* в контейнер backend:8000. Не меняй конфиг Nginx без веской причины.
+### 2. Frontend (React + Vite)
+*   Используй **Functional Components** и **Hooks** (`useState`, `useEffect`, `useContext`).
+*   Глобальное состояние через `AppContext` (без Redux, если не требуется).
+*   Стилизация: CSS Modules или глобальный `App.css` с использованием Bootstrap классов.
+*   **UI**: Придерживайся стиля "Glassmorphism" (полупрозрачные карточки, градиенты).
 
-    Database: Используем SQLModel. Не пиши чистый SQL и старайся не смешивать с сырым SQLAlchemy, если это возможно. База данных всегда SQLite для простоты.
+### 3. Docker Strategy
+*   **Dev**: `frontend/Dockerfile` запускает `npm run dev`.
+*   **Prod**: `frontend/nginx/Dockerfile` делает `npm run build` -> Nginx.
+*   **Jenkins**: Пайплайн должен использовать Prod Dockerfile.
 
-2. Frontend (KISS - Keep It Simple, Stupid)
+### 4. Контекст Валюты
+*   Приложение поддерживает мультивалютность (EUR, USD, RUB). Валюта хранится в `AppConfig`.
 
-    Не предлагай npm, React, Vue или Webpack, пока тебя явно не попросят.
+### 5. API Контракт
+*   Если меняешь модель в `backend/models.py`, обязательно обнови `frontend/src/api.js` и соответствующие React компоненты.
 
-    Используй Vanilla JS и fetch().
+---
 
-    Стилизация через CDN Bootstrap 5.
-
-3. Docker Optimization
-
-    Используй Alpine версии для Nginx.
-
-    Используй Slim версии для Python.
-
-    Всегда проверяй, что права на папку data настроены корректно (SQLite требует прав на запись в папку).
-
-4. Контекст Валюты
-
-    Приложение поддерживает три валюты: **Евро (€)**, **Доллар ($)**, **Рубль (₽)**.
-    Валюта настраивается в разделе "Администрирование".
-    По умолчанию используется Евро (€).
-
-5. API Контракт
-
-    Если ты меняешь модель Product в Python, убедись, что JS код на фронтенде обновлен соответственно (поля в fetch, отображение в таблице).
-
-Автор проекта: Serge Svalov & Google Gemini
-
-
-Supermarket Price Tracker & Shopping List
-1. Общее описание
-
-Цель: Веб-приложение для мониторинга цен на продукты в разных магазинах, ведения истории изменений цен и формирования списков покупок с возможностью отправки в Telegram. Стек:
-
-    Backend: Python 3.10+, FastAPI, SQLModel (SQLAlchemy + Pydantic), SQLite.
-
-    Frontend: Vanilla JS (модульная структура ES6), HTML5, Bootstrap 5.
-
-    Infrastructure: Docker, Jenkins (CI/CD).
-
-2. Архитектура данных (Database Schema)
-
-Проект использует реляционную БД со следующими сущностями:
-
-    Shop: id, name.
-
-    Product: id, name, price, weight, calories, quantity, shop_id (FK), updated_at.
-
-    PriceHistory: id, product_id (FK), price, created_at.
-
-    ShoppingList: id, name, created_at.
-
-    ShoppingListItem: id, shopping_list_id (FK), product_id (FK), quantity, is_bought.
-
-    TelegramConfig & TelegramUser: Настройки бота и ID чатов для рассылки.
-
-3. Структура API (Backend Endpoints)
-
-    /products: CRUD операций с товарами. Важна подгрузка связей shop и history через selectinload.
-
-    /lists: Управление списками. Эндпоинт /lists/items отвечает за наполнение списков.
-
-    /telegram/send/{list_id}: Формирует HTML-отчет и отправляет его через BackgroundTasks.
-
-    /catalog: Публичный эндпоинт для экспорта актуальных цен.
-
-4. Структура Frontend (Modules)
-
-Код разделен на модули для оптимизации:
-
-    api.js: Все fetch запросы к бэкенду.
-
-    state.js: Глобальное хранилище данных в памяти (кеш товаров).
-
-    modules/products.js: Логика создания товаров.
-
-    modules/lists.js: Управление списками (открытие, добавление товаров через "Picker").
-
-    modules/telegram.js: Настройка интеграции.
-
-5. Известные технические особенности и проблемы
-
-    Lazy Loading: SQLModel по умолчанию не грузит связанные объекты. Требуется явный session.refresh(obj, ["relation"]) после коммита.
-
-    Concurrency: Использование BackgroundTasks для внешних API (Telegram), чтобы избежать блокировки Uvicorn.
-
-    Security: Необходимость экранирования спецсимволов (html.escape) для корректной работы parse_mode="HTML" в Telegram.
-
-    UI/UX: Реализован "умный поиск" (фильтрация) по всему каталогу при добавлении в список.
-
+**Автор проекта:** Serge Svalov & Google Gemini
