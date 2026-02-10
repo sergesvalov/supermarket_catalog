@@ -106,3 +106,11 @@ class CatalogExport(SQLModel):
 class AppConfig(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     currency: str = Field(default="EUR")
+    
+    @field_validator('currency')
+    @classmethod
+    def validate_currency(cls, v):
+        allowed = ["EUR", "USD", "RUB"]
+        if v not in allowed:
+            raise ValueError(f'Currency must be one of {allowed}')
+        return v

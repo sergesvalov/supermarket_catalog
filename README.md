@@ -12,7 +12,7 @@
 ## 🛠 Технологический стек
 
 * **Backend:** Python 3.11 (Slim), FastAPI, SQLModel (SQLAlchemy wrapper).
-* **Database:** SQLite (хранится в файле `data/database.db` через Docker Volume).
+* **Database:** SQLite (хранится в `/app/data/database.db` внутри контейнера, мапится через Docker Volume).
 * **Frontend:** HTML5, Vanilla JavaScript (ES6+), Bootstrap 5.
 * **Infrastructure:** Docker, Docker Compose, Nginx (Reverse Proxy & Static Server).
 * **CI/CD:** Jenkins Pipeline.
@@ -57,19 +57,28 @@ FastAPI автоматически генерирует Swagger UI:
 🔌 API Endpoints
 
 Все запросы идут с префиксом /api.
-Метод	Эндпоинт	Описание
-GET	/products	Получить список всех товаров (сортировка по дате).
-POST	/products	Добавить новый товар.
-PUT	/products/{id}	Обновить цену или название товара.
+| Метод  | Эндпоинт           | Описание                                      |
+|--------|-------------------|-----------------------------------------------|
+| GET    | /products         | Получить список всех товаров                 |
+| POST   | /products         | Добавить новый товар                         |
+| PUT    | /products/{id}    | Обновить товар                               |
+| DELETE | /products/{id}    | Удалить товар из каталога                    |
+| GET    | /shops            | Получить список магазинов                    |
+| GET    | /lists            | Получить все списки покупок                  |
+| GET    | /admin/config     | Получить настройки приложения (валюта)       |
+| POST   | /admin/config     | Обновить настройки приложения                |
 
-Модель данных (JSON):
-JSON
-
+Модель данных Product (JSON):
+```json
 {
   "name": "Молоко",
-  "shop_name": "Spar",
-  "price": 2.50  // Валюта: Евро (€)
+  "shop_id": 1,
+  "price": 2.50,
+  "weight": 1000,
+  "calories": 64,
+  "quantity": 1
 }
+```
 
 🧠 Instructions for AI Context (Google Gemini)
 
@@ -100,7 +109,9 @@ JSON
 
 4. Контекст Валюты
 
-    Основная валюта проекта — Евро (€). Все примеры цен и интерфейс должны использовать символ €.
+    Приложение поддерживает три валюты: **Евро (€)**, **Доллар ($)**, **Рубль (₽)**.
+    Валюта настраивается в разделе "Администрирование".
+    По умолчанию используется Евро (€).
 
 5. API Контракт
 

@@ -3,7 +3,6 @@ services:
     build: ./backend
     container_name: catalog-backend
     volumes:
-      - /opt/supermarket_catalog/backend:/app
       - /opt/supermarket_catalog/backend_data:/app/data
     restart: always
 
