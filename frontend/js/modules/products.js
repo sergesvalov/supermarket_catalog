@@ -83,9 +83,12 @@ export function initProducts(refreshCallback) {
 
         try {
             const id = inputs.id.value;
+            console.log('DEBUG: Product ID =', id, '| Type:', typeof id, '| Truthy:', !!id);
             if (id) {
+                console.log('DEBUG: Sending PUT to update product', id);
                 await api.products.update(id, rawData);
             } else {
+                console.log('DEBUG: Sending POST to create new product');
                 await api.products.create(rawData);
             }
             resetForm();
