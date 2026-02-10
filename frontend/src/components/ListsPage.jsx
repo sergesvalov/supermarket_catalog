@@ -69,9 +69,12 @@ const ListsPage = () => {
         }
     };
 
-    const sendToTelegram = async () => {
+    const sendToTelegram = async (id = null) => {
+        const listId = id || activeList?.id;
+        if (!listId) return;
+
         try {
-            await api.lists.sendToTelegram(activeList.id);
+            await api.lists.sendToTelegram(listId);
             alert('Отправлено в Telegram!');
         } catch (error) {
             alert('Ошибка отправки: ' + error.message);
@@ -185,12 +188,22 @@ const ListsPage = () => {
                                 <span>{new Date(list.created_at).toLocaleDateString()}</span>
                                 <span>{list.items_count || 0} товаров</span>
                             </div>
-                            <button
-                                className="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 rounded-circle"
-                                onClick={(e) => handleDeleteList(list.id, e)}
-                            >
-                                <i className="bi bi-trash"></i>
-                            </button>
+                            <div className="position-absolute top-0 end-0 m-2 d-flex gap-2">
+                                <button
+                                    className="btn btn-outline-primary btn-sm rounded-circle"
+                                    onClick={(e) => { e.stopPropagation(); sendToTelegram(list.id); }}
+                                    title="Отправить в Telegram"
+                                >
+                                    <i className="bi bi-telegram"></i>
+                                </button>
+                                <button
+                                    className="btn btn-outline-danger btn-sm rounded-circle"
+                                    onClick={(e) => handleDeleteList(list.id, e)}
+                                    title="Удалить"
+                                >
+                                    <i className="bi bi-trash"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 ))}
