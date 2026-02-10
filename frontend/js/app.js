@@ -20,7 +20,7 @@ async function loadData() {
         ]);
 
         setProducts(products);
-        renderProducts(products);
+        renderProducts();
         renderShops(shops);
         renderLists(lists);
 

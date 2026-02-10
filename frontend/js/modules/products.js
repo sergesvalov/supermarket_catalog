@@ -3,13 +3,40 @@ import { ProductCard } from '../components.js';
 import { validatePositive, parseOptionalFloat, parseOptionalInt } from '../utils.js';
 import { showHistoryModal } from './history.js';
 
+import { state } from '../state.js';
+
 // Кешируем элементы для модуля
-let listEl, formEl, titleEl, submitBtn, cancelBtn;
+let listEl, formEl, titleEl, submitBtn, cancelBtn, sortSelect;
 let inputs = {};
 
 export function renderProducts(products) {
+    // Если передали продукты - обновляем стейт (например при первичной загрузке)
+    // Но если сортируем - берем из стейта
+    if (products) {
+        // Ничего не делаем, так как стейт обновляется в app.js через setProducts
+        // Но нам нужно знать какой список рендерить.
+        // Лучше так: сортировка всегда берет state.allProducts и рендерит их.
+    }
+
+    // Сортировка
+    let sorted = [...state.allProducts];
+    const criterion = sortSelect ? sortSelect.value : 'date';
+
+    if (criterion === 'price') {
+        sorted.sort((a, b) => a.price - b.price);
+    } else if (criterion === 'shop') {
+        sorted.sort((a, b) => {
+            const nameA = a.shop ? a.shop.name : 'zzz'; // Без магазина - в конец
+            const nameB = b.shop ? b.shop.name : 'zzz';
+            return nameA.localeCompare(nameB);
+        });
+    } else {
+        // По дате (новые сверху)
+        sorted.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+    }
+
     if (listEl) {
-        listEl.innerHTML = products.map(ProductCard).join('');
+        listEl.innerHTML = sorted.map(ProductCard).join('');
     }
 }
 
@@ -20,6 +47,11 @@ export function initProducts(refreshCallback) {
     titleEl = document.getElementById('formTitle');
     submitBtn = document.getElementById('submitBtn');
     cancelBtn = document.getElementById('cancelBtn');
+    sortSelect = document.getElementById('sortSelect');
+
+    if (sortSelect) {
+        sortSelect.addEventListener('change', () => renderProducts());
+    }
 
     if (!formEl) return;
 
