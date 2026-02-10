@@ -99,10 +99,24 @@ export function initLists(refreshCallback) {
             const btn = e.target.closest('.btn-add-to-list');
             if (!btn) return;
             e.preventDefault();
+
+            console.log('DEBUG: Add to list clicked');
+            console.log('DEBUG: List ID:', state.currentListId);
+            console.log('DEBUG: Product ID:', btn.dataset.product);
+
+            if (!state.currentListId) {
+                alert('Ошибка: Не выбран список (List ID is null)');
+                return;
+            }
+
             try {
-                await api.lists.addItem(state.currentListId, btn.dataset.product, 1);
+                const res = await api.lists.addItem(state.currentListId, btn.dataset.product, 1);
+                console.log('DEBUG: Add item response:', res);
                 await refreshActiveList();
-            } catch (err) { alert(err.message); }
+            } catch (err) {
+                console.error('DEBUG: Add item error:', err);
+                alert(err.message);
+            }
         });
     }
 
