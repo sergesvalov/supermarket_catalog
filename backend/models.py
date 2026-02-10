@@ -16,6 +16,7 @@ class Shop(ShopBase, table=True):
 # --- Product ---
 class ProductBase(SQLModel):
     name: str = Field(index=True)
+    category: str = Field(default="продукты", index=True)
     price: float = Field(index=True)
     weight: Optional[float] = Field(default=None)
     calories: Optional[float] = Field(default=None)

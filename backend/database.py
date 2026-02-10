@@ -15,6 +15,15 @@ async def init_db():
     async with engine.begin() as conn:
         # await conn.run_sync(SQLModel.metadata.drop_all) # Для полного сброса
         await conn.run_sync(SQLModel.metadata.create_all)
+        
+        # Миграция: добавляем колонку category, если её нет
+        from sqlalchemy import text
+        try:
+            # Пытаемся выбрать категорию у первого товара (проверка существования колонки)
+            await conn.execute(text("SELECT category FROM product LIMIT 1"))
+        except Exception:
+            print("Migrating DB: Adding 'category' column...")
+            await conn.execute(text("ALTER TABLE product ADD COLUMN category VARCHAR DEFAULT 'продукты'"))
 
 async def get_session():
     async_session = sessionmaker(

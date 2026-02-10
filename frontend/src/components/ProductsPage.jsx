@@ -10,11 +10,11 @@ const ProductsPage = () => {
     // New Product Form State
     const [editingProduct, setEditingProduct] = useState(null);
     const [formData, setFormData] = useState({
-        name: '', shop_id: '', price: '', weight: '', calories: '', quantity: ''
+        name: '', category: 'продукты', shop_id: '', price: '', weight: '', calories: '', quantity: ''
     });
 
     const resetForm = () => {
-        setFormData({ name: '', shop_id: '', price: '', weight: '', calories: '', quantity: '' });
+        setFormData({ name: '', category: 'продукты', shop_id: '', price: '', weight: '', calories: '', quantity: '' });
         setEditingProduct(null);
     };
 
@@ -22,6 +22,7 @@ const ProductsPage = () => {
         setEditingProduct(product);
         setFormData({
             name: product.name,
+            category: product.category || 'продукты',
             shop_id: product.shop_id || '',
             price: product.price,
             weight: product.weight || '',
@@ -76,6 +77,17 @@ const ProductsPage = () => {
             return new Date(b.created_at) - new Date(a.created_at);
         });
 
+    const categories = ['продукты', 'хоз.товары', 'растения', 'для дома', 'для машины'];
+    const getCategoryColor = (cat) => {
+        switch (cat) {
+            case 'хоз.товары': return 'bg-info text-dark';
+            case 'растения': return 'bg-success';
+            case 'для дома': return 'bg-warning text-dark';
+            case 'для машины': return 'bg-secondary';
+            default: return 'bg-primary'; // продукты
+        }
+    };
+
     return (
         <div className="row">
             {/* Add/Edit Product Form */}
@@ -102,6 +114,18 @@ const ProductsPage = () => {
                                 required
                             />
                         </div>
+
+                        <div className="mb-3">
+                            <label className="form-label small text-muted">Категория</label>
+                            <select
+                                className="form-select form-control"
+                                value={formData.category}
+                                onChange={e => setFormData({ ...formData, category: e.target.value })}
+                            >
+                                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        </div>
+
                         <div className="mb-3">
                             <label className="form-label small text-muted">Магазин</label>
                             <select
@@ -185,7 +209,12 @@ const ProductsPage = () => {
                             onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
                         >
                             <div>
-                                <h6 className="mb-1 fw-bold">{p.name}</h6>
+                                <h6 className="mb-1 fw-bold">
+                                    {p.name}
+                                    <span className={`badge ms-2 ${getCategoryColor(p.category || 'продукты')}`} style={{ fontSize: '0.7em' }}>
+                                        {p.category || 'продукты'}
+                                    </span>
+                                </h6>
                                 <div className="small text-muted">
                                     <span className="badge bg-light text-dark border me-2">
                                         {p.shop ? p.shop.name : 'Без магазина'}
