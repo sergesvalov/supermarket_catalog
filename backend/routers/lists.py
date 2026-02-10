@@ -64,9 +64,11 @@ async def add_item_to_list(item_in: ShoppingListItemCreate, session: AsyncSessio
         # await session.refresh(existing, ["product"])
         
         # Reload to include product relation
-        res = await session.execute(
-            select(ShoppingListItem).where(ShoppingListItem.id == existing.id).options(selectinload(ShoppingListItem.product))
+        query = select(ShoppingListItem).where(ShoppingListItem.id == existing.id).options(
+            selectinload(ShoppingListItem.product).selectinload(Product.shop),
+            selectinload(ShoppingListItem.product).selectinload(Product.history)
         )
+        res = await session.execute(query)
         return res.scalars().first()
     else:
         new_item = ShoppingListItem.from_orm(item_in)
@@ -75,9 +77,11 @@ async def add_item_to_list(item_in: ShoppingListItemCreate, session: AsyncSessio
         await session.refresh(new_item)
         
         # Reload to include product relation
-        res = await session.execute(
-            select(ShoppingListItem).where(ShoppingListItem.id == new_item.id).options(selectinload(ShoppingListItem.product))
+        query = select(ShoppingListItem).where(ShoppingListItem.id == new_item.id).options(
+            selectinload(ShoppingListItem.product).selectinload(Product.shop),
+            selectinload(ShoppingListItem.product).selectinload(Product.history)
         )
+        res = await session.execute(query)
         return res.scalars().first()
 
 @router.patch("/items/{item_id}")
