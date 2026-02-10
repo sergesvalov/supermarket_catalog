@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, select
+from sqlmodel import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from typing import List
 from datetime import datetime
@@ -9,42 +10,43 @@ from models import Product, ProductCreate, PriceHistory, ShoppingListItem, Produ
 router = APIRouter(prefix="/products", tags=["Products"])
 
 @router.get("", response_model=List[ProductResponse])
-def get_products(session: Session = Depends(get_session)):
+async def get_products(session: AsyncSession = Depends(get_session)):
     query = select(Product).options(
         selectinload(Product.shop), 
         selectinload(Product.history)
     ).order_by(Product.updated_at.desc())
-    return session.exec(query).all()
+    result = await session.execute(query)
+    return result.scalars().all()
 
 @router.post("", response_model=ProductResponse)
-def create_product(product_in: ProductCreate, session: Session = Depends(get_session)):
+async def create_product(product_in: ProductCreate, session: AsyncSession = Depends(get_session)):
     product = Product.from_orm(product_in)
     product.updated_at = datetime.now()
     session.add(product)
-    session.commit()
-    session.refresh(product)
+    await session.commit()
+    await session.refresh(product)
     
     # Load shop relationship if exists
     if product.shop_id:
-        session.refresh(product, ["shop"])
+        await session.refresh(product, ["shop"])
     
     # Create price history
     history = PriceHistory(product_id=product.id, price=product.price)
     session.add(history)
-    session.commit()
+    await session.commit()
     
     # Reload with all relationships
     query = select(Product).where(Product.id == product.id).options(
         selectinload(Product.shop),
         selectinload(Product.history)
     )
-    result = session.exec(query).first()
-    print(f"DEBUG: Returning product {result.id}, shop_id={result.shop_id}, shop object={result.shop}")
-    return result
+    result = await session.execute(query)
+    product_loaded = result.scalars().first()
+    return product_loaded
 
 @router.put("/{product_id}", response_model=ProductResponse)
-def update_product(product_id: int, product_data: ProductCreate, session: Session = Depends(get_session)):
-    db_product = session.get(Product, product_id)
+async def update_product(product_id: int, product_data: ProductCreate, session: AsyncSession = Depends(get_session)):
+    db_product = await session.get(Product, product_id)
     if not db_product:
         raise HTTPException(status_code=404, detail="Товар не найден")
     
@@ -60,26 +62,31 @@ def update_product(product_id: int, product_data: ProductCreate, session: Sessio
     if price_changed:
         session.add(PriceHistory(product_id=product_id, price=product_data.price))
         
-    session.commit()
-    session.refresh(db_product)
+    await session.commit()
+    await session.refresh(db_product)
     if db_product.shop_id:
-        session.refresh(db_product, ["shop"])
-    session.refresh(db_product, ["history"])
-    return db_product
+        await session.refresh(db_product, ["shop"])
+    # await session.refresh(db_product, ["history"]) # Refreshing list relation can be tricky, reloading is safer
+    
+    # Reload to ensure all relations
+    query = select(Product).where(Product.id == product_id).options(
+        selectinload(Product.shop), selectinload(Product.history)
+    )
+    result = await session.execute(query)
+    return result.scalars().first()
 
 @router.delete("/{product_id}", status_code=204)
-def delete_product(product_id: int, session: Session = Depends(get_session)):
-    product = session.get(Product, product_id)
+async def delete_product(product_id: int, session: AsyncSession = Depends(get_session)):
+    product = await session.get(Product, product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Товар не найден")
     
-    # Сначала удаляем записи из списков покупок, чтобы избежать FK constraint error
-    # (если в БД не настроен ON DELETE CASCADE)
+    # Сначала удаляем записи из списков покупок
     statement = select(ShoppingListItem).where(ShoppingListItem.product_id == product_id)
-    results = session.exec(statement)
-    for item in results:
-        session.delete(item)
+    results = await session.execute(statement)
+    for item in results.scalars().all():
+        await session.delete(item)
         
-    session.delete(product)
-    session.commit()
+    await session.delete(product)
+    await session.commit()
     return None

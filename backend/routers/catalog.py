@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
-from sqlmodel import Session, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 from sqlalchemy.orm import selectinload
 from typing import List
 from database import get_session
@@ -8,8 +9,9 @@ from models import Product, CatalogExport
 router = APIRouter(prefix="/catalog", tags=["Public Catalog"])
 
 @router.get("", response_model=List[CatalogExport])
-def get_catalog(session: Session = Depends(get_session)):
-    products = session.exec(select(Product).options(selectinload(Product.shop))).all()
+async def get_catalog(session: AsyncSession = Depends(get_session)):
+    result = await session.execute(select(Product).options(selectinload(Product.shop)))
+    products = result.scalars().all()
     return [
         CatalogExport(
             product=p.name, 

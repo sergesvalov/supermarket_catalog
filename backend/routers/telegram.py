@@ -1,7 +1,8 @@
 import requests
 import html
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
-from sqlmodel import Session, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from database import get_session
@@ -9,7 +10,8 @@ from models import TelegramConfig, TelegramUser, ShoppingList, ShoppingListItem,
 
 router = APIRouter(prefix="/telegram", tags=["Telegram"])
 
-# Хелпер для фоновой задачи
+# Хелпер для фоновой задачи (остается синхронным, так как requests синхронный, 
+# и BackgroundTasks запускает его в thread pool, что нормально для блокирующих операций)
 def send_telegram_task(bot_token: str, chat_id: str, text: str):
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     try:
@@ -18,54 +20,65 @@ def send_telegram_task(bot_token: str, chat_id: str, text: str):
         print(f"Ошибка фоновой отправки TG: {e}")
 
 @router.get("/config", response_model=Optional[TelegramConfig])
-def get_tg_config(session: Session = Depends(get_session)):
-    return session.exec(select(TelegramConfig)).first()
+async def get_tg_config(session: AsyncSession = Depends(get_session)):
+    result = await session.execute(select(TelegramConfig))
+    return result.scalars().first()
 
 @router.post("/config")
-def save_tg_config(config: TelegramConfig, session: Session = Depends(get_session)):
+async def save_tg_config(config: TelegramConfig, session: AsyncSession = Depends(get_session)):
+    # Проверку токена можно оставить синхронной или вынести в thread pool, но requests быстрый
+    # Лучше использовать httpx для async, но ради одной проверки не будем тянуть новую зависимость
     try:
         resp = requests.get(f"https://api.telegram.org/bot{config.bot_token}/getMe", timeout=5)
         if not resp.ok: raise Exception()
     except:
         raise HTTPException(status_code=400, detail="Неверный токен Telegram")
 
-    existing = session.exec(select(TelegramConfig)).first()
+    result = await session.execute(select(TelegramConfig))
+    existing = result.scalars().first()
+    
     if existing:
         existing.bot_token = config.bot_token
         session.add(existing)
     else:
         session.add(config)
-    session.commit()
+    await session.commit()
     return {"ok": True}
 
 @router.get("/users", response_model=List[TelegramUser])
-def get_tg_users(session: Session = Depends(get_session)):
-    return session.exec(select(TelegramUser)).all()
+async def get_tg_users(session: AsyncSession = Depends(get_session)):
+    result = await session.execute(select(TelegramUser))
+    return result.scalars().all()
 
 @router.post("/users")
-def add_tg_user(user: TelegramUser, session: Session = Depends(get_session)):
+async def add_tg_user(user: TelegramUser, session: AsyncSession = Depends(get_session)):
     session.add(user)
-    session.commit()
+    await session.commit()
     return user
 
 @router.delete("/users/{user_id}")
-def del_tg_user(user_id: int, session: Session = Depends(get_session)):
-    user = session.get(TelegramUser, user_id)
+async def del_tg_user(user_id: int, session: AsyncSession = Depends(get_session)):
+    user = await session.get(TelegramUser, user_id)
     if user:
-        session.delete(user)
-        session.commit()
+        await session.delete(user)
+        await session.commit()
     return {"ok": True}
 
 @router.post("/send/{list_id}")
-def send_to_tg(list_id: int, bg: BackgroundTasks, session: Session = Depends(get_session)):
-    config = session.exec(select(TelegramConfig)).first()
-    users = session.exec(select(TelegramUser)).all()
+async def send_to_tg(list_id: int, bg: BackgroundTasks, session: AsyncSession = Depends(get_session)):
+    res_conf = await session.execute(select(TelegramConfig))
+    config = res_conf.scalars().first()
+    
+    res_users = await session.execute(select(TelegramUser))
+    users = res_users.scalars().all()
+    
     if not config or not users: raise HTTPException(status_code=400, detail="Настройте бота и юзеров")
 
     query = select(ShoppingList).where(ShoppingList.id == list_id).options(
         selectinload(ShoppingList.items).selectinload(ShoppingListItem.product).selectinload(Product.shop)
     )
-    sl = session.exec(query).first()
+    res_sl = await session.execute(query)
+    sl = res_sl.scalars().first()
     
     if not sl:
         raise HTTPException(status_code=404, detail="Список не найден")
