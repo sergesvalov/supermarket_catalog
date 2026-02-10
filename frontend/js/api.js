@@ -22,6 +22,8 @@ async function request(endpoint, method = 'GET', data = null) {
         return response.json();
     } catch (err) {
         console.error("API Error:", err);
+        // Добавляем URL к ошибке для отладки
+        err.message += ` (URL: ${endpoint})`;
         throw err;
     }
 }
