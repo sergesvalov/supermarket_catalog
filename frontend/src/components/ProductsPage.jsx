@@ -176,7 +176,14 @@ const ProductsPage = () => {
 
                 <div className="d-flex flex-column gap-3">
                     {filteredProducts.map(p => (
-                        <div key={p.id} className="glass-card p-3 d-flex justify-content-between align-items-center">
+                        <div
+                            key={p.id}
+                            className="glass-card p-3 d-flex justify-content-between align-items-center"
+                            onClick={() => handleEdit(p)}
+                            style={{ cursor: 'pointer', transition: 'transform 0.2s' }}
+                            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.01)'}
+                            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                        >
                             <div>
                                 <h6 className="mb-1 fw-bold">{p.name}</h6>
                                 <div className="small text-muted">
@@ -192,15 +199,8 @@ const ProductsPage = () => {
                                     {p.price.toFixed(2)} {currency}
                                 </span>
                                 <button
-                                    className="btn btn-outline-primary btn-sm rounded-circle"
-                                    onClick={() => handleEdit(p)}
-                                    title="Редактировать"
-                                >
-                                    <i className="bi bi-pencil"></i>
-                                </button>
-                                <button
                                     className="btn btn-outline-danger btn-sm rounded-circle"
-                                    onClick={() => handleDelete(p.id)}
+                                    onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }}
                                     title="Удалить"
                                 >
                                     <i className="bi bi-trash"></i>
