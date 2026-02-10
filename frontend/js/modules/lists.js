@@ -31,7 +31,7 @@ export function initLists(refreshCallback) {
             e.preventDefault();
             const inputName = document.getElementById('newListName');
             const name = inputName.value.trim();
-            if(!name) return;
+            if (!name) return;
             try {
                 await api.lists.create(name);
                 inputName.value = '';
@@ -46,7 +46,7 @@ export function initLists(refreshCallback) {
             const delBtn = e.target.closest('.btn-delete-list');
             if (delBtn) {
                 e.stopPropagation();
-                if(confirm('Удалить список?')) {
+                if (confirm('Удалить список?')) {
                     await api.lists.delete(delBtn.dataset.id);
                     if (refreshCallback) refreshCallback();
                 }
@@ -66,16 +66,16 @@ export function initLists(refreshCallback) {
             if (refreshCallback) refreshCallback();
         });
     }
-    
+
     // 4. Отправка в TELEGRAM
     if (btnSendTg) {
         btnSendTg.addEventListener('click', async () => {
             if (!state.currentListId) return;
-            
+
             const originalText = btnSendTg.innerHTML;
             btnSendTg.disabled = true;
             btnSendTg.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Отправка...';
-            
+
             try {
                 await api.lists.sendToTelegram(state.currentListId);
                 alert("✅ Список успешно отправлен!");
@@ -109,14 +109,19 @@ export function initLists(refreshCallback) {
     // 7. Чекбокс/Удаление товара
     if (itemsList) {
         itemsList.addEventListener('click', async (e) => {
-            if (e.target.classList.contains('check-item')) {
-                await api.lists.toggleItem(e.target.dataset.id, e.target.checked);
-                refreshActiveList();
-            }
-            const delBtn = e.target.closest('.btn-remove-item');
-            if (delBtn) {
-                await api.lists.deleteItem(delBtn.dataset.id);
-                refreshActiveList();
+            try {
+                if (e.target.classList.contains('check-item')) {
+                    await api.lists.toggleItem(e.target.dataset.id, e.target.checked);
+                    await refreshActiveList();
+                }
+                const delBtn = e.target.closest('.btn-remove-item');
+                if (delBtn) {
+                    await api.lists.deleteItem(delBtn.dataset.id);
+                    await refreshActiveList();
+                }
+            } catch (err) {
+                alert("Ошибка обновления списка: " + err.message);
+                await refreshActiveList(); // Revert UI state on error
             }
         });
     }
@@ -128,13 +133,13 @@ async function openShoppingList(id) {
     document.getElementById('listsOverview').classList.add('d-none');
     document.getElementById('activeListView').classList.remove('d-none');
     document.getElementById('productSearchInput').value = '';
-    
+
     renderProductPicker();
     await refreshActiveList();
 }
 
 export async function refreshActiveList() {
-    if(!state.currentListId) return;
+    if (!state.currentListId) return;
     const title = document.getElementById('activeListTitle');
     const listEl = document.getElementById('activeListItems');
     const totalEl = document.getElementById('totalSum');
@@ -142,7 +147,7 @@ export async function refreshActiveList() {
     try {
         const list = await api.lists.getOne(state.currentListId);
         title.innerText = list.name;
-        
+
         const items = list.items || [];
         if (items.length === 0) {
             listEl.innerHTML = '<li class="list-group-item text-center text-muted py-4">Список пуст. Выберите товары слева.</li>';
@@ -155,7 +160,7 @@ export async function refreshActiveList() {
             }, 0);
             totalEl.innerText = sum.toFixed(2) + ' €';
         }
-    } catch(e) {
+    } catch (e) {
         listEl.innerHTML = `<div class="alert alert-danger">Ошибка: ${e.message}</div>`;
     }
 }
@@ -164,7 +169,7 @@ export function renderProductPicker(query = '') {
     const resEl = document.getElementById('searchResults');
     if (!resEl) return;
     query = query.toLowerCase().trim();
-    
+
     let filtered = state.allProducts.filter(p => p.name.toLowerCase().includes(query));
     filtered.sort((a, b) => a.price - b.price);
 

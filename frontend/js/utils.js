@@ -17,3 +17,13 @@ export function parseOptionalFloat(value) {
 export function parseOptionalInt(value) {
     return value ? parseInt(value) : null;
 }
+
+export function escapeHtml(text) {
+    if (!text) return text;
+    return text.toString()
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
