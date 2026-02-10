@@ -4,7 +4,7 @@ from sqlalchemy.orm import selectinload
 from typing import List
 from datetime import datetime
 from database import get_session
-from models import Product, ProductCreate, PriceHistory, ShoppingListItem
+from models import Product, ProductCreate, PriceHistory, ShoppingListItem, ProductResponse
 
 router = APIRouter(prefix="/products", tags=["Products"])
 

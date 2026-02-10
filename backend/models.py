@@ -46,6 +46,13 @@ class Product(ProductBase, table=True):
         sa_relationship_kwargs={"cascade": "all, delete", "lazy": "selectin"}
     )
 
+# Response model that includes relationships
+class ProductResponse(ProductBase):
+    id: int
+    updated_at: datetime
+    shop: Optional[Shop] = None
+    history: List["PriceHistory"] = []
+
 # --- PriceHistory ---
 class PriceHistory(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
