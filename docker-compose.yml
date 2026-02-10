@@ -12,9 +12,9 @@ services:
       dockerfile: Dockerfile
     container_name: catalog-frontend
     ports:
-      - "8040:80"
+      - "8040:5173" # Check: Vite uses 5173 by default
     volumes:
-      # Mount the nginx config so we can tweak routing without rebuilding
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - ./frontend:/app
+      - /app/node_modules # Avoid overwriting container's node_modules with local (if any)
     depends_on:
       - backend

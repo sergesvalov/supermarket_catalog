@@ -1,27 +1,17 @@
-# Stage 1: Build the React application
-FROM node:18-alpine as build
+FROM node:18-alpine
 
 WORKDIR /app
 
-# Copy package files and install dependencies
+# Install dependencies first (cached if package.json doesn't change)
 COPY package*.json ./
 RUN npm install
 
-# Copy source code
+# In development, we will mount the source code via docker-compose
+# So we don't strictly need to COPY . . here, but it's good as a fallback
 COPY . .
 
-# Build the application
-RUN npm run build
+# Expose Vite port
+EXPOSE 5173
 
-# Stage 2: Serve the application with Nginx
-FROM nginx:alpine
-
-# Copy the built files from the previous stage
-COPY --from=build /app/dist /usr/share/nginx/html
-
-# Copy custom Nginx configuration if needed (optional based on your setup)
-# COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
+# Run Vite with --host to allow external access
+CMD ["npm", "run", "dev", "--", "--host"]
