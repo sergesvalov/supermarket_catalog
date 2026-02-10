@@ -8,25 +8,52 @@ const ProductsPage = () => {
     const [sortBy, setSortBy] = useState('date');
 
     // New Product Form State
-    const [newProduct, setNewProduct] = useState({
+    const [editingProduct, setEditingProduct] = useState(null);
+    const [formData, setFormData] = useState({
         name: '', shop_id: '', price: '', weight: '', calories: '', quantity: ''
     });
 
-    const handleCreate = async (e) => {
+    const resetForm = () => {
+        setFormData({ name: '', shop_id: '', price: '', weight: '', calories: '', quantity: '' });
+        setEditingProduct(null);
+    };
+
+    const handleEdit = (product) => {
+        setEditingProduct(product);
+        setFormData({
+            name: product.name,
+            shop_id: product.shop_id || '',
+            price: product.price,
+            weight: product.weight || '',
+            calories: product.calories || '',
+            quantity: product.quantity || ''
+        });
+        // Scroll to top to see form
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            await api.products.create({
-                ...newProduct,
-                shop_id: newProduct.shop_id ? parseInt(newProduct.shop_id) : null,
-                price: parseFloat(newProduct.price),
-                weight: newProduct.weight ? parseInt(newProduct.weight) : null,
-                calories: newProduct.calories ? parseInt(newProduct.calories) : null,
-                quantity: newProduct.quantity ? parseInt(newProduct.quantity) : 1
-            });
-            setNewProduct({ name: '', shop_id: '', price: '', weight: '', calories: '', quantity: '' });
+            const payload = {
+                ...formData,
+                shop_id: formData.shop_id ? parseInt(formData.shop_id) : null,
+                price: parseFloat(formData.price),
+                weight: formData.weight ? parseInt(formData.weight) : null,
+                calories: formData.calories ? parseInt(formData.calories) : null,
+                quantity: formData.quantity ? parseInt(formData.quantity) : 1
+            };
+
+            if (editingProduct) {
+                await api.products.update(editingProduct.id, payload);
+            } else {
+                await api.products.create(payload);
+            }
+
+            resetForm();
             refreshProducts();
         } catch (error) {
-            alert("Error creating product: " + error.message);
+            alert("Error: " + error.message);
         }
     };
 
@@ -51,18 +78,27 @@ const ProductsPage = () => {
 
     return (
         <div className="row">
-            {/* Add Product Form */}
+            {/* Add/Edit Product Form */}
             <div className="col-md-4 mb-4">
                 <div className="glass-card p-4 sticky-top" style={{ top: '20px' }}>
-                    <h5 className="mb-3 fw-bold">✨ Добавить товар</h5>
-                    <form onSubmit={handleCreate}>
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                        <h5 className="fw-bold mb-0">
+                            {editingProduct ? '✏️ Редактировать' : '✨ Добавить товар'}
+                        </h5>
+                        {editingProduct && (
+                            <button className="btn btn-sm btn-outline-secondary" onClick={resetForm}>
+                                Отмена
+                            </button>
+                        )}
+                    </div>
+                    <form onSubmit={handleSubmit}>
                         <div className="mb-3">
                             <label className="form-label small text-muted">Название</label>
                             <input
                                 type="text"
                                 className="form-control"
-                                value={newProduct.name}
-                                onChange={e => setNewProduct({ ...newProduct, name: e.target.value })}
+                                value={formData.name}
+                                onChange={e => setFormData({ ...formData, name: e.target.value })}
                                 required
                             />
                         </div>
@@ -70,8 +106,8 @@ const ProductsPage = () => {
                             <label className="form-label small text-muted">Магазин</label>
                             <select
                                 className="form-select form-control"
-                                value={newProduct.shop_id}
-                                onChange={e => setNewProduct({ ...newProduct, shop_id: e.target.value })}
+                                value={formData.shop_id}
+                                onChange={e => setFormData({ ...formData, shop_id: e.target.value })}
                             >
                                 <option value="">-- Не выбрано --</option>
                                 {shops.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -82,8 +118,8 @@ const ProductsPage = () => {
                             <input
                                 type="number" step="0.01"
                                 className="form-control"
-                                value={newProduct.price}
-                                onChange={e => setNewProduct({ ...newProduct, price: e.target.value })}
+                                value={formData.price}
+                                onChange={e => setFormData({ ...formData, price: e.target.value })}
                                 required
                             />
                         </div>
@@ -91,26 +127,28 @@ const ProductsPage = () => {
                             <div className="col-4">
                                 <label className="form-label small text-muted">Вес(г)</label>
                                 <input type="number" className="form-control px-2" placeholder="..."
-                                    value={newProduct.weight}
-                                    onChange={e => setNewProduct({ ...newProduct, weight: e.target.value })}
+                                    value={formData.weight}
+                                    onChange={e => setFormData({ ...formData, weight: e.target.value })}
                                 />
                             </div>
                             <div className="col-4">
                                 <label className="form-label small text-muted">Ккал</label>
                                 <input type="number" className="form-control px-2" placeholder="..."
-                                    value={newProduct.calories}
-                                    onChange={e => setNewProduct({ ...newProduct, calories: e.target.value })}
+                                    value={formData.calories}
+                                    onChange={e => setFormData({ ...formData, calories: e.target.value })}
                                 />
                             </div>
                             <div className="col-4">
                                 <label className="form-label small text-muted">Шт.</label>
                                 <input type="number" className="form-control px-2" placeholder="..."
-                                    value={newProduct.quantity}
-                                    onChange={e => setNewProduct({ ...newProduct, quantity: e.target.value })}
+                                    value={formData.quantity}
+                                    onChange={e => setFormData({ ...formData, quantity: e.target.value })}
                                 />
                             </div>
                         </div>
-                        <button type="submit" className="btn btn-premium w-100">Добавить</button>
+                        <button type="submit" className={`btn w-100 ${editingProduct ? 'btn-warning text-white' : 'btn-premium'}`}>
+                            {editingProduct ? 'Сохранить изменения' : 'Добавить'}
+                        </button>
                     </form>
                 </div>
             </div>
@@ -149,13 +187,21 @@ const ProductsPage = () => {
                                     {p.calories && <span className="text-secondary">{p.calories} ккал</span>}
                                 </div>
                             </div>
-                            <div className="d-flex align-items-center gap-3">
-                                <span className="fs-5 fw-bold text-primary">
+                            <div className="d-flex align-items-center gap-2">
+                                <span className="fs-5 fw-bold text-primary me-3">
                                     {p.price.toFixed(2)} {currency}
                                 </span>
                                 <button
+                                    className="btn btn-outline-primary btn-sm rounded-circle"
+                                    onClick={() => handleEdit(p)}
+                                    title="Редактировать"
+                                >
+                                    <i className="bi bi-pencil"></i>
+                                </button>
+                                <button
                                     className="btn btn-outline-danger btn-sm rounded-circle"
                                     onClick={() => handleDelete(p.id)}
+                                    title="Удалить"
                                 >
                                     <i className="bi bi-trash"></i>
                                 </button>
