@@ -8,7 +8,7 @@ from models import Product, ProductCreate, PriceHistory, ShoppingListItem, Produ
 
 router = APIRouter(prefix="/products", tags=["Products"])
 
-@router.get("", response_model=List[Product])
+@router.get("", response_model=List[ProductResponse])
 def get_products(session: Session = Depends(get_session)):
     query = select(Product).options(
         selectinload(Product.shop), 
@@ -16,7 +16,7 @@ def get_products(session: Session = Depends(get_session)):
     ).order_by(Product.updated_at.desc())
     return session.exec(query).all()
 
-@router.post("", response_model=Product)
+@router.post("", response_model=ProductResponse)
 def create_product(product_in: ProductCreate, session: Session = Depends(get_session)):
     product = Product.from_orm(product_in)
     product.updated_at = datetime.now()
@@ -42,7 +42,7 @@ def create_product(product_in: ProductCreate, session: Session = Depends(get_ses
     print(f"DEBUG: Returning product {result.id}, shop_id={result.shop_id}, shop object={result.shop}")
     return result
 
-@router.put("/{product_id}", response_model=Product)
+@router.put("/{product_id}", response_model=ProductResponse)
 def update_product(product_id: int, product_data: ProductCreate, session: Session = Depends(get_session)):
     db_product = session.get(Product, product_id)
     if not db_product:
