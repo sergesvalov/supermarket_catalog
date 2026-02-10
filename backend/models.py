@@ -33,6 +33,8 @@ class ProductCreate(ProductBase):
     pass
 
 class Product(ProductBase, table=True):
+    model_config = {"from_attributes": True}
+    
     id: Optional[int] = Field(default=None, primary_key=True)
     updated_at: datetime = Field(default_factory=datetime.now)
     

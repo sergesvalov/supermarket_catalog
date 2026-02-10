@@ -38,7 +38,9 @@ def create_product(product_in: ProductCreate, session: Session = Depends(get_ses
         selectinload(Product.shop),
         selectinload(Product.history)
     )
-    return session.exec(query).first()
+    result = session.exec(query).first()
+    print(f"DEBUG: Returning product {result.id}, shop_id={result.shop_id}, shop object={result.shop}")
+    return result
 
 @router.put("/{product_id}", response_model=Product)
 def update_product(product_id: int, product_data: ProductCreate, session: Session = Depends(get_session)):
