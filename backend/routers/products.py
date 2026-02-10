@@ -35,10 +35,12 @@ def create_product(product_in: ProductCreate, session: Session = Depends(get_ses
 
 @router.put("/{product_id}", response_model=Product)
 def update_product(product_id: int, product_data: ProductCreate, session: Session = Depends(get_session)):
-    print(f"Update request for product_id: {product_id}")
     db_product = session.get(Product, product_id)
     if not db_product:
         print(f"Product {product_id} not found in DB")
+        # debug: list all IDs
+        all_prods = session.exec(select(Product)).all()
+        print(f"DEBUG: All product IDs in DB: {[p.id for p in all_prods]}")
         raise HTTPException(status_code=404, detail="Товар не найден")
     
     price_changed = abs(db_product.price - product_data.price) > 0.001
