@@ -7,24 +7,52 @@ from sqlalchemy.ext.asyncio import AsyncSession
 EXTERNAL_API_URL = "http://192.168.10.222:8000/products/"
 
 def fetch_external_products():
+    # First, check what's available on the server
+    base_url = "http://192.168.10.222:8000"
+    
+    print(f"\n🔍 DIAGNOSTIC: Checking what's available on {base_url}")
+    print("=" * 60)
+    
+    # Check root path
+    try:
+        response = requests.get(base_url, timeout=5)
+        print(f"Root path ({base_url}): {response.status_code}")
+        if response.status_code == 200:
+            print(f"Content-Type: {response.headers.get('content-type')}")
+            print(f"Response: {response.text[:300]}")
+    except Exception as e:
+        print(f"Root path error: {e}")
+    
+    # Check /docs (FastAPI Swagger)
+    try:
+        response = requests.get(f"{base_url}/docs", timeout=5)
+        print(f"\n/docs endpoint: {response.status_code}")
+        if response.status_code == 200:
+            print("✅ Swagger docs available at /docs")
+    except Exception as e:
+        print(f"/docs error: {e}")
+    
+    print("=" * 60)
+    print("\n🔍 Trying product endpoints...")
+    
     # Try different possible API endpoints
     possible_urls = [
-        "http://192.168.10.222:8000/products/",
-        "http://192.168.10.222:8000/products",
-        "http://192.168.10.222:8000/api/products/",
-        "http://192.168.10.222:8000/api/products",
+        f"{base_url}/products/",
+        f"{base_url}/products",
+        f"{base_url}/api/products/",
+        f"{base_url}/api/products",
     ]
     
     for url in possible_urls:
         try:
-            print(f"Trying: {url}")
+            print(f"\nTrying: {url}")
             response = requests.get(url, timeout=10)
-            print(f"Response status code: {response.status_code}")
+            print(f"Status: {response.status_code}")
             
             if response.status_code == 200:
-                print(f"Response headers: {response.headers}")
-                print(f"Response content length: {len(response.content)}")
-                print(f"Response text (first 200 chars): {response.text[:200]}")
+                print(f"Content-Type: {response.headers.get('content-type')}")
+                print(f"Response length: {len(response.content)} bytes")
+                print(f"Response preview: {response.text[:200]}")
                 
                 # Try to parse JSON
                 try:
@@ -33,17 +61,24 @@ def fetch_external_products():
                     print(f"Successfully parsed JSON with {len(data)} items")
                     return data
                 except ValueError as json_err:
-                    print(f"JSON parsing error: {json_err}")
-                    print(f"Full response text: {response.text[:500]}")
+                    print(f"❌ JSON parsing error: {json_err}")
                     continue
             else:
-                print(f"Got {response.status_code}, trying next URL...")
+                print(f"❌ Got {response.status_code}")
+                if response.status_code == 404:
+                    print(f"Response: {response.text[:100]}")
                 
         except requests.RequestException as e:
-            print(f"Request error for {url}: {e}")
+            print(f"❌ Request error: {e}")
             continue
     
-    print(f"❌ All endpoints failed. Tried: {possible_urls}")
+    print(f"\n❌ All endpoints failed.")
+    print(f"\n💡 Возможные причины:")
+    print(f"  1. API не развернут на {base_url}")
+    print(f"  2. Используется другой порт (не 8000)")
+    print(f"  3. Эндпоинт имеет другое название")
+    print(f"  4. Требуется авторизация")
+    print(f"\nПопробуйте открыть в браузере: {base_url}/docs")
     return []
 
 async def import_products_from_service(session: AsyncSession) -> dict:
