@@ -2,7 +2,6 @@ import { useState } from 'react'
 import ProductsPage from './components/ProductsPage'
 import ListsPage from './components/ListsPage'
 import ShopsPage from './components/ShopsPage'
-import TelegramPage from './components/TelegramPage'
 import AdminPage from './components/AdminPage'
 import { AppProvider } from './context/AppContext'
 
@@ -14,7 +13,6 @@ function App() {
             case 'products': return <ProductsPage />
             case 'lists': return <ListsPage />
             case 'shops': return <ShopsPage />
-            case 'telegram': return <TelegramPage />
             case 'admin': return <AdminPage />
             default: return <ProductsPage />
         }
@@ -49,14 +47,6 @@ function App() {
                                 onClick={() => setActiveTab('shops')}
                             >
                                 🏪 Магазины
-                            </button>
-                        </li>
-                        <li className="nav-item">
-                            <button
-                                className={`nav-link ${activeTab === 'telegram' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('telegram')}
-                            >
-                                <i className="bi bi-telegram me-1"></i> Telegram
                             </button>
                         </li>
                         <li className="nav-item">
