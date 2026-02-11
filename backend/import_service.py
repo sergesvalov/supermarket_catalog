@@ -4,7 +4,9 @@ from sqlmodel import select
 from models import Product
 from sqlalchemy.ext.asyncio import AsyncSession
 
-EXTERNAL_API_URL = "http://192.168.10.222:8000/products/"
+from config import settings
+
+EXTERNAL_API_URL = settings.EXTERNAL_API_URL
 
 def fetch_external_products():
     """

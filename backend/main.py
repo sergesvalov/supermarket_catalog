@@ -4,10 +4,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import init_db
 from routers import products, shops, lists, telegram, catalog, admin
 
+from alembic.config import Config
+from alembic import command
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Create tables
-    await init_db()
+    # Run migrations on startup
+    alembic_cfg = Config("alembic.ini")
+    command.upgrade(alembic_cfg, "head")
+    
     yield
     # Shutdown: Clean up resources if needed
 
