@@ -7,11 +7,15 @@ from routers import products, shops, lists, telegram, catalog, admin
 from alembic.config import Config
 from alembic import command
 
+import asyncio
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Run migrations on startup
+    # Must run in executor to avoid conflict with uvicorn's loop vs alembic's asyncio.run()
     alembic_cfg = Config("alembic.ini")
-    command.upgrade(alembic_cfg, "head")
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, command.upgrade, alembic_cfg, "head")
     
     yield
     # Shutdown: Clean up resources if needed
