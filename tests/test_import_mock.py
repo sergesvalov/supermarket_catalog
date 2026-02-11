@@ -59,6 +59,7 @@ async def test_import_products_logic():
         assert stats["fetched"] == 2
         assert stats["created"] == 2
         assert stats["updated"] == 0
+        assert stats["skipped"] == 0
         assert len(added_products) == 2
 
         # Check Apple
@@ -112,6 +113,7 @@ async def test_import_products_update_existing():
         assert stats["fetched"] == 2
         assert stats["created"] == 1  # Banana is new
         assert stats["updated"] == 1  # Apple is updated
+        assert stats["skipped"] == 0
         
         # Check that Apple's price was updated
         assert existing_apple.price == 1.5  # New price from MOCK_API_RESPONSE 

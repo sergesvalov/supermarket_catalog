@@ -114,8 +114,8 @@ const AdminPage = () => {
                 <div className="glass-card p-4 mb-4">
                     <h5 className="mb-3">📥 Импорт товаров</h5>
                     <p className="text-muted small">
-                        Загрузка товаров из внешнего сервиса (http://192.168.10.222:8010/).
-                        Дубликаты по имени будут пропущены.
+                        Загрузка товаров из внешнего сервиса (http://192.168.10.222:8000/products/).
+                        Обновление существующих и создание новых товаров.
                     </p>
                     <button
                         className="btn btn-primary w-100"

@@ -7,79 +7,27 @@ from sqlalchemy.ext.asyncio import AsyncSession
 EXTERNAL_API_URL = "http://192.168.10.222:8000/products/"
 
 def fetch_external_products():
-    # First, check what's available on the server
-    base_url = "http://192.168.10.222:8000"
-    
-    print(f"\n🔍 DIAGNOSTIC: Checking what's available on {base_url}")
-    print("=" * 60)
-    
-    # Check root path
+    """
+    Fetches products from the external FoodPlanner API.
+    Returns list of products or raises exception on error.
+    """
     try:
-        response = requests.get(base_url, timeout=5)
-        print(f"Root path ({base_url}): {response.status_code}")
-        if response.status_code == 200:
-            print(f"Content-Type: {response.headers.get('content-type')}")
-            print(f"Response: {response.text[:300]}")
+        print(f"Fetching products from {EXTERNAL_API_URL}...")
+        response = requests.get(EXTERNAL_API_URL, timeout=10)
+        response.raise_for_status()
+        products = response.json()
+        print(f"✅ Successfully fetched {len(products)} products")
+        return products
+    except requests.Timeout:
+        raise Exception(f"Ошибка соединения с внешним API: Connection timeout")
+    except requests.ConnectionError:
+        raise Exception(f"Ошибка соединения с внешним API: Cannot connect to {EXTERNAL_API_URL}")
+    except requests.HTTPError as e:
+        raise Exception(f"Ошибка HTTP от внешнего API: {e.response.status_code}")
+    except ValueError as e:
+        raise Exception(f"Ошибка парсинга данных от внешнего API: {e}")
     except Exception as e:
-        print(f"Root path error: {e}")
-    
-    # Check /docs (FastAPI Swagger)
-    try:
-        response = requests.get(f"{base_url}/docs", timeout=5)
-        print(f"\n/docs endpoint: {response.status_code}")
-        if response.status_code == 200:
-            print("✅ Swagger docs available at /docs")
-    except Exception as e:
-        print(f"/docs error: {e}")
-    
-    print("=" * 60)
-    print("\n🔍 Trying product endpoints...")
-    
-    # Try different possible API endpoints
-    possible_urls = [
-        f"{base_url}/products/",
-        f"{base_url}/products",
-        f"{base_url}/api/products/",
-        f"{base_url}/api/products",
-    ]
-    
-    for url in possible_urls:
-        try:
-            print(f"\nTrying: {url}")
-            response = requests.get(url, timeout=10)
-            print(f"Status: {response.status_code}")
-            
-            if response.status_code == 200:
-                print(f"Content-Type: {response.headers.get('content-type')}")
-                print(f"Response length: {len(response.content)} bytes")
-                print(f"Response preview: {response.text[:200]}")
-                
-                # Try to parse JSON
-                try:
-                    data = response.json()
-                    print(f"✅ SUCCESS! Found working endpoint: {url}")
-                    print(f"Successfully parsed JSON with {len(data)} items")
-                    return data
-                except ValueError as json_err:
-                    print(f"❌ JSON parsing error: {json_err}")
-                    continue
-            else:
-                print(f"❌ Got {response.status_code}")
-                if response.status_code == 404:
-                    print(f"Response: {response.text[:100]}")
-                
-        except requests.RequestException as e:
-            print(f"❌ Request error: {e}")
-            continue
-    
-    print(f"\n❌ All endpoints failed.")
-    print(f"\n💡 Возможные причины:")
-    print(f"  1. API не развернут на {base_url}")
-    print(f"  2. Используется другой порт (не 8000)")
-    print(f"  3. Эндпоинт имеет другое название")
-    print(f"  4. Требуется авторизация")
-    print(f"\nПопробуйте открыть в браузере: {base_url}/docs")
-    return []
+        raise Exception(f"Неизвестная ошибка при обращении к API: {str(e)}")
 
 async def import_products_from_service(session: AsyncSession) -> dict:
     """
@@ -94,11 +42,17 @@ async def import_products_from_service(session: AsyncSession) -> dict:
         "fetched": len(external_products),
         "created": 0,
         "updated": 0,
-        "errors": []
+        "skipped": 0
     }
     
     for ext_prod in external_products:
         try:
+            # Validate required fields
+            if not ext_prod.get('name') or ext_prod.get('price') is None:
+                print(f"⚠️ Skipping product with missing required fields: {ext_prod}")
+                stats["skipped"] += 1
+                continue
+            
             # Check if product already exists by name
             result = await session.execute(select(Product).where(Product.name == ext_prod['name']))
             existing_product = result.scalars().first()
@@ -158,8 +112,8 @@ async def import_products_from_service(session: AsyncSession) -> dict:
                 session.add(new_product)
                 stats["created"] += 1
         except Exception as e:
-            print(f"Error importing {ext_prod.get('name', 'unknown')}: {e}")
-            stats["errors"].append(str(e))
+            print(f"⚠️ Error importing {ext_prod.get('name', 'unknown')}: {e}")
+            stats["skipped"] += 1
         
     await session.commit()
     return stats
