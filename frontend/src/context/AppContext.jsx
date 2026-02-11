@@ -8,6 +8,14 @@ export const AppProvider = ({ children }) => {
     const [shops, setShops] = useState([]);
     const [lists, setLists] = useState([]);
     const [currency, setCurrency] = useState('EUR');
+
+    const currencySymbols = {
+        'EUR': '€',
+        'USD': '$',
+        'RUB': '₽'
+    };
+    const currencySymbol = currencySymbols[currency] || currency;
+
     const [loading, setLoading] = useState(false);
 
     // Initial Data Load
@@ -58,6 +66,7 @@ export const AppProvider = ({ children }) => {
         shops,
         lists,
         currency,
+        currencySymbol,
         loading,
         setCurrency,
         refreshProducts,

@@ -3,7 +3,7 @@ import { useAppContext } from '../context/AppContext';
 import { api } from '../api';
 
 const ProductsPage = () => {
-    const { products, shops, currency, refreshProducts } = useAppContext();
+    const { products, shops, currencySymbol, refreshProducts } = useAppContext();
     const [searchTerm, setSearchTerm] = useState('');
     const [sortBy, setSortBy] = useState('date');
 
@@ -137,7 +137,7 @@ const ProductsPage = () => {
                                             .map((h, idx) => (
                                                 <tr key={idx} className="border-bottom border-secondary-subtle">
                                                     <td>{new Date(h.created_at).toLocaleDateString()} {new Date(h.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                                                    <td className="text-end fw-bold">{h.price.toFixed(2)} {currency}</td>
+                                                    <td className="text-end fw-bold">{h.price.toFixed(2)} {currencySymbol}</td>
                                                 </tr>
                                             ))}
                                     </tbody>
@@ -202,7 +202,7 @@ const ProductsPage = () => {
                             </select>
                         </div>
                         <div className="mb-3">
-                            <label className="form-label small text-muted">Цена ({currency})</label>
+                            <label className="form-label small text-muted">Цена ({currencySymbol})</label>
                             <input
                                 type="number" step="0.01"
                                 className="form-control"
@@ -336,7 +336,7 @@ const ProductsPage = () => {
                             </div>
                             <div className="d-flex align-items-center gap-2">
                                 <span className="fs-5 fw-bold text-primary me-3">
-                                    {p.price.toFixed(2)} {currency}
+                                    {p.price.toFixed(2)} {currencySymbol}
                                 </span>
                                 <button
                                     className="btn btn-outline-info btn-sm rounded-circle me-1"
