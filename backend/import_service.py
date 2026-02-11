@@ -11,10 +11,21 @@ def fetch_external_products():
     Fetches products from the external FoodPlanner API.
     Returns list of products or raises exception on error.
     """
+    response = None
     try:
         print(f"Fetching products from {EXTERNAL_API_URL}...")
         response = requests.get(EXTERNAL_API_URL, timeout=10)
+        
+        # Log response details for debugging
+        print(f"Response status code: {response.status_code}")
+        print(f"Response headers: {response.headers.get('content-type', 'unknown')}")
+        
         response.raise_for_status()
+        
+        # Check if response has content before trying to parse JSON
+        if not response.text:
+            raise Exception("External API returned empty response")
+        
         products = response.json()
         print(f"✅ Successfully fetched {len(products)} products")
         return products
@@ -23,9 +34,16 @@ def fetch_external_products():
     except requests.ConnectionError:
         raise Exception(f"Ошибка соединения с внешним API: Cannot connect to {EXTERNAL_API_URL}")
     except requests.HTTPError as e:
-        raise Exception(f"Ошибка HTTP от внешнего API: {e.response.status_code}")
-    except ValueError as e:
-        raise Exception(f"Ошибка парсинга данных от внешнего API: {e}")
+        error_msg = f"Ошибка HTTP от внешнего API: {e.response.status_code}"
+        if e.response.text:
+            error_msg += f"\nResponse: {e.response.text[:500]}"  # First 500 chars
+        raise Exception(error_msg)
+    except (ValueError, requests.exceptions.JSONDecodeError) as e:
+        error_msg = f"Ошибка парсинга данных от внешнего API: {e}"
+        if response and response.text:
+            error_msg += f"\nReceived content (first 500 chars): {response.text[:500]}"
+            error_msg += f"\nContent-Type: {response.headers.get('content-type', 'unknown')}"
+        raise Exception(error_msg)
     except Exception as e:
         raise Exception(f"Неизвестная ошибка при обращении к API: {str(e)}")
 
