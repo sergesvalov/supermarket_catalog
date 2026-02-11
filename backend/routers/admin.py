@@ -30,3 +30,9 @@ async def update_config(config_in: AppConfig, session: AsyncSession = Depends(ge
     await session.commit()
     await session.refresh(config)
     return config
+
+@router.post("/import")
+async def import_products_endpoint(session: AsyncSession = Depends(get_session)):
+    from import_service import import_products_from_service
+    count = await import_products_from_service(session)
+    return {"message": f"Импортировано {count} товаров", "count": count}

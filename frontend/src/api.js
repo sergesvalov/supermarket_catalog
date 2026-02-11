@@ -58,6 +58,7 @@ export const api = {
     },
     admin: {
         getConfig: () => request('/admin/config'),
-        saveConfig: (currency) => request('/admin/config', 'POST', { currency })
+        saveConfig: (currency) => request('/admin/config', 'POST', { currency }),
+        importProducts: () => request('/admin/import', 'POST')
     }
 };

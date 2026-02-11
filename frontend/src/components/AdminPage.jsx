@@ -11,6 +11,22 @@ const AdminPage = () => {
     const [users, setUsers] = useState([]);
     const [newUser, setNewUser] = useState({ name: '', chat_id: '' });
 
+    // Import State
+    const [importing, setImporting] = useState(false);
+
+    const handleImport = async () => {
+        if (!confirm("Импортировать товары из внешнего сервиса? Это может занять некоторое время.")) return;
+        setImporting(true);
+        try {
+            const result = await api.admin.importProducts();
+            alert(result.message);
+        } catch (error) {
+            alert("Ошибка импорта: " + error.message);
+        } finally {
+            setImporting(false);
+        }
+    };
+
     useEffect(() => {
         loadData();
     }, []);
@@ -92,6 +108,26 @@ const AdminPage = () => {
                         </div>
                         <button type="submit" className="btn btn-premium w-100">Сохранить настройки валюты</button>
                     </form>
+                </div>
+
+                {/* Import Products */}
+                <div className="glass-card p-4 mb-4">
+                    <h5 className="mb-3">📥 Импорт товаров</h5>
+                    <p className="text-muted small">
+                        Загрузка товаров из внешнего сервиса (http://192.168.10.222:8010/).
+                        Дубликаты по имени будут пропущены.
+                    </p>
+                    <button
+                        className="btn btn-primary w-100"
+                        onClick={handleImport}
+                        disabled={importing}
+                    >
+                        {importing ? (
+                            <span><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Загрузка...</span>
+                        ) : (
+                            'Начать импорт'
+                        )}
+                    </button>
                 </div>
 
                 {/* Telegram Settings */}
