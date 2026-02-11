@@ -29,7 +29,7 @@ async def get_list(list_id: int, session: AsyncSession = Depends(get_session)):
 
 @router.post("", response_model=ShoppingListResponse)
 async def create_list(list_in: ShoppingListCreate, session: AsyncSession = Depends(get_session)):
-    shopping_list = ShoppingList.from_orm(list_in)
+    shopping_list = ShoppingList.model_validate(list_in)
     session.add(shopping_list)
     await session.commit()
     await session.refresh(shopping_list)
@@ -71,7 +71,7 @@ async def add_item_to_list(item_in: ShoppingListItemCreate, session: AsyncSessio
         res = await session.execute(query)
         return res.scalars().first()
     else:
-        new_item = ShoppingListItem.from_orm(item_in)
+        new_item = ShoppingListItem.model_validate(item_in)
         session.add(new_item)
         await session.commit()
         await session.refresh(new_item)

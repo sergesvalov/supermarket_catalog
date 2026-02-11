@@ -31,7 +31,7 @@ async def save_tg_config(config: TelegramConfig, session: AsyncSession = Depends
     try:
         resp = requests.get(f"https://api.telegram.org/bot{config.bot_token}/getMe", timeout=5)
         if not resp.ok: raise Exception()
-    except:
+    except Exception:
         raise HTTPException(status_code=400, detail="Неверный токен Telegram")
 
     result = await session.execute(select(TelegramConfig))

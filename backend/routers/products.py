@@ -20,7 +20,7 @@ async def get_products(session: AsyncSession = Depends(get_session)):
 
 @router.post("", response_model=ProductResponse)
 async def create_product(product_in: ProductCreate, session: AsyncSession = Depends(get_session)):
-    product = Product.from_orm(product_in)
+    product = Product.model_validate(product_in)
     product.updated_at = datetime.now()
     session.add(product)
     await session.commit()
@@ -52,7 +52,7 @@ async def update_product(product_id: int, product_data: ProductCreate, session: 
     
     price_changed = abs(db_product.price - product_data.price) > 0.001
     
-    product_dict = product_data.dict(exclude_unset=True)
+    product_dict = product_data.model_dump(exclude_unset=True)
     for key, value in product_dict.items():
         setattr(db_product, key, value)
     

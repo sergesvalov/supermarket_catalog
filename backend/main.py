@@ -1,28 +1,24 @@
+import asyncio
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from database import init_db
-from routers import products, shops, lists, telegram, catalog, admin
-
 from alembic.config import Config
 from alembic import command
 
-import asyncio
+from config import settings
+from routers import products, shops, lists, telegram, catalog, admin
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Run migrations on startup
-    # Must run in executor to avoid conflict with uvicorn's loop vs alembic's asyncio.run()
+    # Run migrations on startup (in executor to avoid blocking the event loop)
     alembic_cfg = Config("alembic.ini")
     loop = asyncio.get_running_loop()
     await loop.run_in_executor(None, command.upgrade, alembic_cfg, "head")
-    
+
     yield
-    # Shutdown: Clean up resources if needed
 
-from config import settings
-
-# ... imports ...
 
 app = FastAPI(root_path="/api", lifespan=lifespan)
 

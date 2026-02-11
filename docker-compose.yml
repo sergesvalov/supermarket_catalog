@@ -6,7 +6,7 @@ services:
       - /opt/supermarket_catalog/backend_data:/app/data
     restart: always
     healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:8000/api/admin/config || exit 1" ]
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/admin/config')" ]
       interval: 30s
       timeout: 10s
       retries: 5
