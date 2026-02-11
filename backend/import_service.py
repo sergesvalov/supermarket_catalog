@@ -7,29 +7,44 @@ from sqlalchemy.ext.asyncio import AsyncSession
 EXTERNAL_API_URL = "http://192.168.10.222:8000/products/"
 
 def fetch_external_products():
-    try:
-        print(f"Fetching products from {EXTERNAL_API_URL}...")
-        response = requests.get(EXTERNAL_API_URL, timeout=10)
-        print(f"Response status code: {response.status_code}")
-        print(f"Response headers: {response.headers}")
-        print(f"Response content length: {len(response.content)}")
-        print(f"Response text (first 200 chars): {response.text[:200]}")
-        
-        response.raise_for_status()
-        
-        # Try to parse JSON
+    # Try different possible API endpoints
+    possible_urls = [
+        "http://192.168.10.222:8000/products/",
+        "http://192.168.10.222:8000/products",
+        "http://192.168.10.222:8000/api/products/",
+        "http://192.168.10.222:8000/api/products",
+    ]
+    
+    for url in possible_urls:
         try:
-            data = response.json()
-            print(f"Successfully parsed JSON with {len(data)} items")
-            return data
-        except ValueError as json_err:
-            print(f"JSON parsing error: {json_err}")
-            print(f"Full response text: {response.text}")
-            return []
+            print(f"Trying: {url}")
+            response = requests.get(url, timeout=10)
+            print(f"Response status code: {response.status_code}")
             
-    except requests.RequestException as e:
-        print(f"Request error: {e}")
-        return []
+            if response.status_code == 200:
+                print(f"Response headers: {response.headers}")
+                print(f"Response content length: {len(response.content)}")
+                print(f"Response text (first 200 chars): {response.text[:200]}")
+                
+                # Try to parse JSON
+                try:
+                    data = response.json()
+                    print(f"✅ SUCCESS! Found working endpoint: {url}")
+                    print(f"Successfully parsed JSON with {len(data)} items")
+                    return data
+                except ValueError as json_err:
+                    print(f"JSON parsing error: {json_err}")
+                    print(f"Full response text: {response.text[:500]}")
+                    continue
+            else:
+                print(f"Got {response.status_code}, trying next URL...")
+                
+        except requests.RequestException as e:
+            print(f"Request error for {url}: {e}")
+            continue
+    
+    print(f"❌ All endpoints failed. Tried: {possible_urls}")
+    return []
 
 async def import_products_from_service(session: AsyncSession) -> dict:
     """
