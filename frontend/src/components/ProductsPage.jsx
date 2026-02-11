@@ -7,6 +7,14 @@ const ProductsPage = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [sortBy, setSortBy] = useState('date');
 
+    // History State
+    const [historyProduct, setHistoryProduct] = useState(null);
+
+    const handleViewHistory = (e, product) => {
+        e.stopPropagation();
+        setHistoryProduct(product);
+    };
+
     // New Product Form State
     const [editingProduct, setEditingProduct] = useState(null);
     const [formData, setFormData] = useState({
@@ -89,8 +97,53 @@ const ProductsPage = () => {
         }
     };
 
+
     return (
         <div className="row">
+            {/* History Modal */}
+            {historyProduct && (
+                <div className="modal-backdrop-custom" style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }} onClick={() => setHistoryProduct(null)}>
+                    <div className="glass-card p-4" style={{ maxWidth: '500px', width: '90%', maxHeight: '80vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+                        <div className="d-flex justify-content-between align-items-center mb-3">
+                            <h5 className="fw-bold mb-0">📉 История цен: {historyProduct.name}</h5>
+                            <button className="btn-close" onClick={() => setHistoryProduct(null)}></button>
+                        </div>
+                        {historyProduct.history && historyProduct.history.length > 0 ? (
+                            <div className="table-responsive">
+                                <table className="table table-borderless text-white">
+                                    <thead>
+                                        <tr>
+                                            <th>Дата</th>
+                                            <th className="text-end">Цена</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {[...historyProduct.history]
+                                            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                                            .map((h, idx) => (
+                                                <tr key={idx} className="border-bottom border-secondary-subtle">
+                                                    <td>{new Date(h.created_at).toLocaleDateString()} {new Date(h.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                                                    <td className="text-end fw-bold">{h.price.toFixed(2)} {currency}</td>
+                                                </tr>
+                                            ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            <p className="text-center text-muted">История цен пуста</p>
+                        )}
+                        <div className="mt-3 text-center">
+                            <button className="btn btn-outline-light btn-sm" onClick={() => setHistoryProduct(null)}>Закрыть</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+
             {/* Add/Edit Product Form */}
             <div className="col-md-4 mb-4">
                 <div className="glass-card p-4 sticky-top" style={{ top: '20px' }}>
@@ -228,6 +281,14 @@ const ProductsPage = () => {
                                 <span className="fs-5 fw-bold text-primary me-3">
                                     {p.price.toFixed(2)} {currency}
                                 </span>
+                                <button
+                                    className="btn btn-outline-info btn-sm rounded-circle me-1"
+                                    onClick={(e) => handleViewHistory(e, p)}
+                                    title="История цен"
+                                >
+                                    <i className="bi bi-clock-history"></i>
+                                </button>
+
                                 <button
                                     className="btn btn-outline-danger btn-sm rounded-circle"
                                     onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }}
