@@ -8,11 +8,27 @@ EXTERNAL_API_URL = "http://192.168.10.222:8010/products/"
 
 def fetch_external_products():
     try:
+        print(f"Fetching products from {EXTERNAL_API_URL}...")
         response = requests.get(EXTERNAL_API_URL, timeout=10)
+        print(f"Response status code: {response.status_code}")
+        print(f"Response headers: {response.headers}")
+        print(f"Response content length: {len(response.content)}")
+        print(f"Response text (first 200 chars): {response.text[:200]}")
+        
         response.raise_for_status()
-        return response.json()
+        
+        # Try to parse JSON
+        try:
+            data = response.json()
+            print(f"Successfully parsed JSON with {len(data)} items")
+            return data
+        except ValueError as json_err:
+            print(f"JSON parsing error: {json_err}")
+            print(f"Full response text: {response.text}")
+            return []
+            
     except requests.RequestException as e:
-        print(f"Error fetching products: {e}")
+        print(f"Request error: {e}")
         return []
 
 async def import_products_from_service(session: AsyncSession) -> dict:
