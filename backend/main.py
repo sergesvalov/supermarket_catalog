@@ -16,12 +16,16 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown: Clean up resources if needed
 
+from config import settings
+
+# ... imports ...
+
 app = FastAPI(root_path="/api", lifespan=lifespan)
 
 # Allow CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

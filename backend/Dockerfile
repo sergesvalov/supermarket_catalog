@@ -1,24 +1,35 @@
-# Используем легковесный официальный образ Python (Debian Slim)
-FROM python:3.11-slim
-
-# Отключаем создание .pyc файлов и буферизацию вывода (важно для логов в Docker)
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+# Stage 1: Builder
+FROM python:3.11-slim as builder
 
 WORKDIR /app
 
-# Копируем только файл зависимостей, чтобы кешировать слои
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gcc && \
+    rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.txt
 
-# Устанавливаем зависимости (без кеша pip для экономии места)
-# --no-cache-dir делает образ еще легче
-RUN pip install --no-cache-dir -r requirements.txt
 
-# Копируем код приложения
+# Stage 2: Final
+FROM python:3.11-slim
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+COPY --from=builder /app/wheels /wheels
+COPY --from=builder /app/requirements.txt .
+
+RUN pip install --no-cache /wheels/*
+
 COPY . .
 
-# Создаем папку для базы данных
+# Create data directory
 RUN mkdir -p data
 
-# Запускаем
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
