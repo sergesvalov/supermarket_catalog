@@ -18,11 +18,11 @@ const ProductsPage = () => {
     // New Product Form State
     const [editingProduct, setEditingProduct] = useState(null);
     const [formData, setFormData] = useState({
-        name: '', category: 'продукты', shop_id: '', price: '', weight: '', calories: '', quantity: ''
+        name: '', category: 'продукты', shop_id: '', price: '', weight: '', weightUnit: 'g', calories: '', proteins: '', fats: '', carbs: '', quantity: ''
     });
 
     const resetForm = () => {
-        setFormData({ name: '', category: 'продукты', shop_id: '', price: '', weight: '', calories: '', quantity: '' });
+        setFormData({ name: '', category: 'продукты', shop_id: '', price: '', weight: '', weightUnit: 'g', calories: '', proteins: '', fats: '', carbs: '', quantity: '' });
         setEditingProduct(null);
     };
 
@@ -33,8 +33,12 @@ const ProductsPage = () => {
             category: product.category || 'продукты',
             shop_id: product.shop_id || '',
             price: product.price,
-            weight: product.weight || '',
+            weight: product.weight ? (product.weight >= 1000 ? product.weight / 1000 : product.weight) : '',
+            weightUnit: product.weight && product.weight >= 1000 ? 'kg' : 'g',
             calories: product.calories || '',
+            proteins: product.proteins || '',
+            fats: product.fats || '',
+            carbs: product.carbs || '',
             quantity: product.quantity || ''
         });
         // Scroll to top to see form
@@ -48,10 +52,16 @@ const ProductsPage = () => {
                 ...formData,
                 shop_id: formData.shop_id ? parseInt(formData.shop_id) : null,
                 price: parseFloat(formData.price),
-                weight: formData.weight ? parseInt(formData.weight) : null,
+                weight: formData.weight ? (formData.weightUnit === 'kg' ? parseFloat(formData.weight) * 1000 : parseInt(formData.weight)) : null,
                 calories: formData.calories ? parseInt(formData.calories) : null,
+                proteins: formData.proteins ? parseFloat(formData.proteins) : null,
+                fats: formData.fats ? parseFloat(formData.fats) : null,
+                carbs: formData.carbs ? parseFloat(formData.carbs) : null,
                 quantity: formData.quantity ? parseInt(formData.quantity) : 1
             };
+
+            // Remove helper field before sending
+            delete payload.weightUnit;
 
             if (editingProduct) {
                 await api.products.update(editingProduct.id, payload);
@@ -202,12 +212,25 @@ const ProductsPage = () => {
                             />
                         </div>
                         <div className="row mb-3">
+                        </div>
+                        <div className="row mb-3">
                             <div className="col-4">
-                                <label className="form-label small text-muted">Вес(г)</label>
-                                <input type="number" className="form-control px-2" placeholder="..."
-                                    value={formData.weight}
-                                    onChange={e => setFormData({ ...formData, weight: e.target.value })}
-                                />
+                                <label className="form-label small text-muted">Вес</label>
+                                <div className="input-group">
+                                    <input type="number" className="form-control px-2" placeholder="..."
+                                        value={formData.weight}
+                                        onChange={e => setFormData({ ...formData, weight: e.target.value })}
+                                    />
+                                    <select
+                                        className="form-select px-1 bg-light text-dark"
+                                        style={{ maxWidth: '60px' }}
+                                        value={formData.weightUnit}
+                                        onChange={e => setFormData({ ...formData, weightUnit: e.target.value })}
+                                    >
+                                        <option value="g">г</option>
+                                        <option value="kg">кг</option>
+                                    </select>
+                                </div>
                             </div>
                             <div className="col-4">
                                 <label className="form-label small text-muted">Ккал</label>
@@ -216,6 +239,31 @@ const ProductsPage = () => {
                                     onChange={e => setFormData({ ...formData, calories: e.target.value })}
                                 />
                             </div>
+                        </div>
+                        <div className="row mb-3">
+                            <div className="col-4">
+                                <label className="form-label small text-muted">Белки</label>
+                                <input type="number" className="form-control px-2" placeholder="..." step="0.1"
+                                    value={formData.proteins}
+                                    onChange={e => setFormData({ ...formData, proteins: e.target.value })}
+                                />
+                            </div>
+                            <div className="col-4">
+                                <label className="form-label small text-muted">Жиры</label>
+                                <input type="number" className="form-control px-2" placeholder="..." step="0.1"
+                                    value={formData.fats}
+                                    onChange={e => setFormData({ ...formData, fats: e.target.value })}
+                                />
+                            </div>
+                            <div className="col-4">
+                                <label className="form-label small text-muted">Углеводы</label>
+                                <input type="number" className="form-control px-2" placeholder="..." step="0.1"
+                                    value={formData.carbs}
+                                    onChange={e => setFormData({ ...formData, carbs: e.target.value })}
+                                />
+                            </div>
+                        </div>
+                        <div className="row mb-3">
                             <div className="col-4">
                                 <label className="form-label small text-muted">Шт.</label>
                                 <input type="number" className="form-control px-2" placeholder="..."
@@ -273,8 +321,17 @@ const ProductsPage = () => {
                                     <span className="badge bg-light text-dark border me-2">
                                         {p.shop ? p.shop.name : 'Без магазина'}
                                     </span>
-                                    {p.weight && <span className="me-2 text-secondary">{p.weight}г</span>}
-                                    {p.calories && <span className="text-secondary">{p.calories} ккал</span>}
+                                    {p.weight && (
+                                        <span className="me-2 text-secondary">
+                                            {p.weight >= 1000 ? `${p.weight / 1000} кг` : `${p.weight} г`}
+                                        </span>
+                                    )}
+                                    {p.calories && <span className="text-secondary me-2">{p.calories} ккал</span>}
+                                    {(p.proteins || p.fats || p.carbs) && (
+                                        <div className="d-inline-block text-muted" style={{ fontSize: '0.8em' }}>
+                                            Б: {p.proteins || '-'} / Ж: {p.fats || '-'} / У: {p.carbs || '-'}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             <div className="d-flex align-items-center gap-2">

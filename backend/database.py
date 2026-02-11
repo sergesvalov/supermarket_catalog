@@ -25,6 +25,15 @@ async def init_db():
             print("Migrating DB: Adding 'category' column...")
             await conn.execute(text("ALTER TABLE product ADD COLUMN category VARCHAR DEFAULT 'продукты'"))
 
+        # Миграция: добавляем колонки БЖУ, если их нет
+        try:
+            await conn.execute(text("SELECT proteins FROM product LIMIT 1"))
+        except Exception:
+            print("Migrating DB: Adding 'proteins', 'fats', 'carbs' columns...")
+            await conn.execute(text("ALTER TABLE product ADD COLUMN proteins FLOAT"))
+            await conn.execute(text("ALTER TABLE product ADD COLUMN fats FLOAT"))
+            await conn.execute(text("ALTER TABLE product ADD COLUMN carbs FLOAT"))
+
 async def get_session():
     async_session = sessionmaker(
         engine, class_=AsyncSession, expire_on_commit=False

@@ -20,10 +20,13 @@ class ProductBase(SQLModel):
     price: float = Field(index=True)
     weight: Optional[float] = Field(default=None)
     calories: Optional[float] = Field(default=None)
+    proteins: Optional[float] = Field(default=None)
+    fats: Optional[float] = Field(default=None)
+    carbs: Optional[float] = Field(default=None)
     quantity: Optional[int] = Field(default=None)
     shop_id: Optional[int] = Field(default=None, foreign_key="shop.id")
 
-    @field_validator('price', 'weight', 'calories', 'quantity')
+    @field_validator('price', 'weight', 'calories', 'quantity', 'proteins', 'fats', 'carbs')
     @classmethod
     def check_positive(cls, v):
         if v is not None and v < 0:
