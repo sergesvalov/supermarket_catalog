@@ -46,17 +46,22 @@ async def import_products_from_service(session: AsyncSession) -> dict:
             category = "продукты"
             
             # Calculate weight/quantity
+            # Calculate weight/quantity
             weight = None
             quantity = None
             
             unit = ext_prod.get('unit', '')
             amount = ext_prod.get('amount', 1)
+            weight_per_piece = ext_prod.get('weight_per_piece')
             
             if unit in ['kg', 'l']:
                 # Convert to grams/ml
                 weight = amount * 1000
             elif unit == 'pcs':
                 quantity = int(amount)
+                if weight_per_piece:
+                     # Если есть вес одной штуки (в кг, судя по документации), переводим в граммы и умножаем
+                     weight = quantity * (weight_per_piece * 1000)
             elif unit == 'g' or unit == 'ml':
                  weight = amount
             else:
@@ -76,6 +81,7 @@ async def import_products_from_service(session: AsyncSession) -> dict:
                 proteins=ext_prod.get('proteins'),
                 fats=ext_prod.get('fats'),
                 carbs=ext_prod.get('carbs'),
+                weight_per_piece=weight_per_piece,
             )
             
             session.add(new_product)

@@ -34,6 +34,13 @@ async def init_db():
             await conn.execute(text("ALTER TABLE product ADD COLUMN fats FLOAT"))
             await conn.execute(text("ALTER TABLE product ADD COLUMN carbs FLOAT"))
 
+        # Миграция: добавляем column weight_per_piece
+        try:
+             await conn.execute(text("SELECT weight_per_piece FROM product LIMIT 1"))
+        except Exception:
+             print("Migrating DB: Adding 'weight_per_piece' column...")
+             await conn.execute(text("ALTER TABLE product ADD COLUMN weight_per_piece FLOAT"))
+
 async def get_session():
     async_session = sessionmaker(
         engine, class_=AsyncSession, expire_on_commit=False

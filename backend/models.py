@@ -19,6 +19,7 @@ class ProductBase(SQLModel):
     category: str = Field(default="продукты", index=True)
     price: float = Field(index=True)
     weight: Optional[float] = Field(default=None)
+    weight_per_piece: Optional[float] = Field(default=None)
     calories: Optional[float] = Field(default=None)
     proteins: Optional[float] = Field(default=None)
     fats: Optional[float] = Field(default=None)
