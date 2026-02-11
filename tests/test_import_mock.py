@@ -57,7 +57,8 @@ async def test_import_products_logic():
 
         # Assertions
         assert stats["fetched"] == 2
-        assert stats["imported"] == 2
+        assert stats["created"] == 2
+        assert stats["updated"] == 0
         assert len(added_products) == 2
 
         # Check Apple
@@ -72,6 +73,48 @@ async def test_import_products_logic():
         # Weight should be quantity * weight_per_piece * 1000
         # 5 * 0.12 * 1000 = 600g
         assert banana.weight == 600 
+
+@pytest.mark.asyncio
+async def test_import_products_update_existing():
+    """Test that existing products are updated, not skipped"""
+    with patch('backend.import_service.requests.get') as mock_get:
+        mock_response = MagicMock()
+        mock_response.json.return_value = MOCK_API_RESPONSE
+        mock_get.return_value = mock_response
+
+        # Mock the database session with existing product
+        mock_session = MagicMock()
+        
+        # Create a mock existing product
+        existing_apple = MagicMock()
+        existing_apple.name = "Apple"
+        existing_apple.price = 1.0  # Old price
+        
+        # Mock execute to return existing product for Apple, None for Banana
+        def mock_execute_side_effect(query):
+            mock_result = MagicMock()
+            # Simple check - if it's an Apple query, return existing
+            # This is a simplified mock - in reality you'd check the query
+            if mock_execute_call_count[0] == 0:
+                mock_result.scalars().first.return_value = existing_apple
+            else:
+                mock_result.scalars().first.return_value = None
+            mock_execute_call_count[0] += 1
+            return mock_result
+        
+        mock_execute_call_count = [0]
+        mock_session.execute.side_effect = mock_execute_side_effect
+
+        # Run the import function
+        stats = await import_products_from_service(mock_session)
+
+        # Assertions
+        assert stats["fetched"] == 2
+        assert stats["created"] == 1  # Banana is new
+        assert stats["updated"] == 1  # Apple is updated
+        
+        # Check that Apple's price was updated
+        assert existing_apple.price == 1.5  # New price from MOCK_API_RESPONSE 
 
 if __name__ == "__main__":
     import asyncio

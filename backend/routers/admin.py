@@ -36,6 +36,7 @@ async def import_products_endpoint(session: AsyncSession = Depends(get_session))
     from import_service import import_products_from_service
     stats = await import_products_from_service(session)
     return {
-        "message": f"Получено: {stats['fetched']}, Импортировано: {stats['imported']}, Пропущено: {stats['skipped']}",
-        "stats": stats
+        "message": f"Создано: {stats['created']}, Обновлено: {stats['updated']}",
+        "created": stats["created"],
+        "updated": stats["updated"]
     }

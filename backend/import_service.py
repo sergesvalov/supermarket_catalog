@@ -17,7 +17,7 @@ def fetch_external_products():
 
 async def import_products_from_service(session: AsyncSession) -> dict:
     """
-    Fetches products from external service and saves new ones to the database.
+    Fetches products from external service and updates existing or creates new ones.
     Returns a dict with statistics.
     """
     print(f"Attempting to fetch from {EXTERNAL_API_URL}...")
@@ -26,8 +26,8 @@ async def import_products_from_service(session: AsyncSession) -> dict:
     
     stats = {
         "fetched": len(external_products),
-        "imported": 0,
-        "skipped": 0,
+        "created": 0,
+        "updated": 0,
         "errors": []
     }
     
@@ -37,15 +37,6 @@ async def import_products_from_service(session: AsyncSession) -> dict:
             result = await session.execute(select(Product).where(Product.name == ext_prod['name']))
             existing_product = result.scalars().first()
             
-            if existing_product:
-                print(f"Skipping duplicate: {ext_prod['name']}")
-                stats["skipped"] += 1
-                continue
-                
-            # Default values
-            category = "продукты"
-            
-            # Calculate weight/quantity
             # Calculate weight/quantity
             weight = None
             quantity = None
@@ -71,21 +62,35 @@ async def import_products_from_service(session: AsyncSession) -> dict:
             if weight is None and quantity is None:
                  quantity = 1 # Default to 1 item if no weight/quantity info
             
-            new_product = Product(
-                name=ext_prod['name'],
-                price=ext_prod['price'],
-                category=category,
-                weight=weight,
-                quantity=quantity,
-                calories=ext_prod.get('calories'),
-                proteins=ext_prod.get('proteins'),
-                fats=ext_prod.get('fats'),
-                carbs=ext_prod.get('carbs'),
-                weight_per_piece=weight_per_piece,
-            )
-            
-            session.add(new_product)
-            stats["imported"] += 1
+            if existing_product:
+                # Update existing product
+                print(f"Updating existing product: {ext_prod['name']}")
+                existing_product.price = ext_prod['price']
+                existing_product.weight = weight
+                existing_product.quantity = quantity
+                existing_product.calories = ext_prod.get('calories')
+                existing_product.proteins = ext_prod.get('proteins')
+                existing_product.fats = ext_prod.get('fats')
+                existing_product.carbs = ext_prod.get('carbs')
+                existing_product.weight_per_piece = weight_per_piece
+                stats["updated"] += 1
+            else:
+                # Create new product
+                print(f"Creating new product: {ext_prod['name']}")
+                new_product = Product(
+                    name=ext_prod['name'],
+                    price=ext_prod['price'],
+                    category="продукты",  # Default category
+                    weight=weight,
+                    quantity=quantity,
+                    calories=ext_prod.get('calories'),
+                    proteins=ext_prod.get('proteins'),
+                    fats=ext_prod.get('fats'),
+                    carbs=ext_prod.get('carbs'),
+                    weight_per_piece=weight_per_piece,
+                )
+                session.add(new_product)
+                stats["created"] += 1
         except Exception as e:
             print(f"Error importing {ext_prod.get('name', 'unknown')}: {e}")
             stats["errors"].append(str(e))
