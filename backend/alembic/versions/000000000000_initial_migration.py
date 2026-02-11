@@ -10,6 +10,7 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 import sqlmodel
+from sqlalchemy import inspect
 
 
 # revision identifiers, used by Alembic.
@@ -20,86 +21,99 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # Get existing tables to avoid errors on pre-existing databases
+    conn = op.get_bind()
+    inspector = inspect(conn)
+    existing_tables = inspector.get_table_names()
+
     # --- Shop ---
-    op.create_table('shop',
-        sa.Column('name', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
-        sa.Column('id', sa.Integer(), nullable=False),
-        sa.PrimaryKeyConstraint('id')
-    )
-    op.create_index(op.f('ix_shop_name'), 'shop', ['name'], unique=True)
+    if 'shop' not in existing_tables:
+        op.create_table('shop',
+            sa.Column('name', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+            sa.Column('id', sa.Integer(), nullable=False),
+            sa.PrimaryKeyConstraint('id')
+        )
+        op.create_index(op.f('ix_shop_name'), 'shop', ['name'], unique=True)
 
     # --- Product ---
-    op.create_table('product',
-        sa.Column('name', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
-        sa.Column('category', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
-        sa.Column('price', sa.Float(), nullable=False),
-        sa.Column('weight', sa.Float(), nullable=True),
-        sa.Column('weight_per_piece', sa.Float(), nullable=True),
-        sa.Column('calories', sa.Float(), nullable=True),
-        sa.Column('proteins', sa.Float(), nullable=True),
-        sa.Column('fats', sa.Float(), nullable=True),
-        sa.Column('carbs', sa.Float(), nullable=True),
-        sa.Column('quantity', sa.Integer(), nullable=True),
-        sa.Column('shop_id', sa.Integer(), nullable=True),
-        sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('updated_at', sa.DateTime(), nullable=False),
-        sa.ForeignKeyConstraint(['shop_id'], ['shop.id'], ),
-        sa.PrimaryKeyConstraint('id')
-    )
-    op.create_index(op.f('ix_product_category'), 'product', ['category'], unique=False)
-    op.create_index(op.f('ix_product_name'), 'product', ['name'], unique=False)
-    op.create_index(op.f('ix_product_price'), 'product', ['price'], unique=False)
+    if 'product' not in existing_tables:
+        op.create_table('product',
+            sa.Column('name', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+            sa.Column('category', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+            sa.Column('price', sa.Float(), nullable=False),
+            sa.Column('weight', sa.Float(), nullable=True),
+            sa.Column('weight_per_piece', sa.Float(), nullable=True),
+            sa.Column('calories', sa.Float(), nullable=True),
+            sa.Column('proteins', sa.Float(), nullable=True),
+            sa.Column('fats', sa.Float(), nullable=True),
+            sa.Column('carbs', sa.Float(), nullable=True),
+            sa.Column('quantity', sa.Integer(), nullable=True),
+            sa.Column('shop_id', sa.Integer(), nullable=True),
+            sa.Column('id', sa.Integer(), nullable=False),
+            sa.Column('updated_at', sa.DateTime(), nullable=False),
+            sa.ForeignKeyConstraint(['shop_id'], ['shop.id'], ),
+            sa.PrimaryKeyConstraint('id')
+        )
+        op.create_index(op.f('ix_product_category'), 'product', ['category'], unique=False)
+        op.create_index(op.f('ix_product_name'), 'product', ['name'], unique=False)
+        op.create_index(op.f('ix_product_price'), 'product', ['price'], unique=False)
 
     # --- PriceHistory ---
-    op.create_table('pricehistory',
-        sa.Column('product_id', sa.Integer(), nullable=False),
-        sa.Column('price', sa.Float(), nullable=False),
-        sa.Column('created_at', sa.DateTime(), nullable=False),
-        sa.Column('id', sa.Integer(), nullable=False),
-        sa.ForeignKeyConstraint(['product_id'], ['product.id'], ),
-        sa.PrimaryKeyConstraint('id')
-    )
+    if 'pricehistory' not in existing_tables:
+        op.create_table('pricehistory',
+            sa.Column('product_id', sa.Integer(), nullable=False),
+            sa.Column('price', sa.Float(), nullable=False),
+            sa.Column('created_at', sa.DateTime(), nullable=False),
+            sa.Column('id', sa.Integer(), nullable=False),
+            sa.ForeignKeyConstraint(['product_id'], ['product.id'], ),
+            sa.PrimaryKeyConstraint('id')
+        )
 
     # --- ShoppingList ---
-    op.create_table('shoppinglist',
-        sa.Column('name', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
-        sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('created_at', sa.DateTime(), nullable=False),
-        sa.PrimaryKeyConstraint('id')
-    )
+    if 'shoppinglist' not in existing_tables:
+        op.create_table('shoppinglist',
+            sa.Column('name', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+            sa.Column('id', sa.Integer(), nullable=False),
+            sa.Column('created_at', sa.DateTime(), nullable=False),
+            sa.PrimaryKeyConstraint('id')
+        )
 
     # --- ShoppingListItem ---
-    op.create_table('shoppinglistitem',
-        sa.Column('shopping_list_id', sa.Integer(), nullable=False),
-        sa.Column('product_id', sa.Integer(), nullable=False),
-        sa.Column('quantity', sa.Integer(), nullable=False),
-        sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('is_bought', sa.Boolean(), nullable=False),
-        sa.ForeignKeyConstraint(['product_id'], ['product.id'], ),
-        sa.ForeignKeyConstraint(['shopping_list_id'], ['shoppinglist.id'], ),
-        sa.PrimaryKeyConstraint('id')
-    )
+    if 'shoppinglistitem' not in existing_tables:
+        op.create_table('shoppinglistitem',
+            sa.Column('shopping_list_id', sa.Integer(), nullable=False),
+            sa.Column('product_id', sa.Integer(), nullable=False),
+            sa.Column('quantity', sa.Integer(), nullable=False),
+            sa.Column('id', sa.Integer(), nullable=False),
+            sa.Column('is_bought', sa.Boolean(), nullable=False),
+            sa.ForeignKeyConstraint(['product_id'], ['product.id'], ),
+            sa.ForeignKeyConstraint(['shopping_list_id'], ['shoppinglist.id'], ),
+            sa.PrimaryKeyConstraint('id')
+        )
 
     # --- Telegram ---
-    op.create_table('telegramconfig',
-        sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('bot_token', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
-        sa.PrimaryKeyConstraint('id')
-    )
+    if 'telegramconfig' not in existing_tables:
+        op.create_table('telegramconfig',
+            sa.Column('id', sa.Integer(), nullable=False),
+            sa.Column('bot_token', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+            sa.PrimaryKeyConstraint('id')
+        )
 
-    op.create_table('telegramuser',
-        sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('name', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
-        sa.Column('chat_id', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
-        sa.PrimaryKeyConstraint('id')
-    )
+    if 'telegramuser' not in existing_tables:
+        op.create_table('telegramuser',
+            sa.Column('id', sa.Integer(), nullable=False),
+            sa.Column('name', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+            sa.Column('chat_id', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+            sa.PrimaryKeyConstraint('id')
+        )
 
     # --- AppConfig ---
-    op.create_table('appconfig',
-        sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('currency', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
-        sa.PrimaryKeyConstraint('id')
-    )
+    if 'appconfig' not in existing_tables:
+        op.create_table('appconfig',
+            sa.Column('id', sa.Integer(), nullable=False),
+            sa.Column('currency', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+            sa.PrimaryKeyConstraint('id')
+        )
 
 
 def downgrade() -> None:
