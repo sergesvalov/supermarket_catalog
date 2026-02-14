@@ -211,18 +211,25 @@ const ProductsPage = () => {
                                 onChange={e => setFormData({ ...formData, shop_id: e.target.value })}
                             >
                                 <option value="">-- Не выбрано --</option>
-                                {shops.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                {shops.map(s => (
+                                    <option key={s.id} value={s.id}>
+                                        {s.name} ({getCurrencySymbol(s.currency || 'EUR')})
+                                    </option>
+                                ))}
                             </select>
                         </div>
                         <div className="mb-3">
-                            <label className="form-label small text-muted">Цена ({getShopCurrencyById(formData.shop_id)})</label>
-                            <input
-                                type="number" step="0.01"
-                                className="form-control"
-                                value={formData.price}
-                                onChange={e => setFormData({ ...formData, price: e.target.value })}
-                                required
-                            />
+                            <label className="form-label small text-muted">Цена</label>
+                            <div className="input-group">
+                                <input
+                                    type="number" step="0.01"
+                                    className="form-control"
+                                    value={formData.price}
+                                    onChange={e => setFormData({ ...formData, price: e.target.value })}
+                                    required
+                                />
+                                <span className="input-group-text">{getShopCurrencyById(formData.shop_id)}</span>
+                            </div>
                         </div>
                         <div className="row mb-3">
                         </div>
