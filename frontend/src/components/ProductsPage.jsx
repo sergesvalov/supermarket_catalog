@@ -222,7 +222,7 @@ const ProductsPage = () => {
                             <label className="form-label small text-muted">Цена</label>
                             <div className="input-group">
                                 <input
-                                    type="number" step="0.1" min="0"
+                                    type="number" step="0.01" min="0"
                                     className="form-control"
                                     value={formData.price}
                                     onChange={e => setFormData({ ...formData, price: e.target.value })}
