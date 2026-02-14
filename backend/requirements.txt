@@ -2,6 +2,7 @@ fastapi
 uvicorn
 sqlmodel
 python-multipart
+httpx
 requests
 aiosqlite
 alembic

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 from database import get_session
@@ -34,7 +34,10 @@ async def update_config(config_in: AppConfig, session: AsyncSession = Depends(ge
 @router.post("/import")
 async def import_products_endpoint(session: AsyncSession = Depends(get_session)):
     from import_service import import_products_from_service
-    stats = await import_products_from_service(session)
+    try:
+        stats = await import_products_from_service(session)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
     return {
         "message": f"Создано: {stats['created']}, Обновлено: {stats['updated']}, Пропущено: {stats['skipped']}",
         "created": stats["created"],

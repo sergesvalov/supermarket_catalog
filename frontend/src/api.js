@@ -12,12 +12,16 @@ async function request(endpoint, method = 'GET', data = null) {
         if (response.status === 204) return null;
 
         if (!response.ok) {
+            let errorMessage = `Ошибка сети: ${response.status} ${response.statusText}`;
             try {
                 const errorData = await response.json();
-                throw new Error(errorData.detail || 'Ошибка сервера');
-            } catch (e) {
-                throw new Error(`Ошибка сети: ${response.status} ${response.statusText}`);
+                if (errorData.detail) {
+                    errorMessage = errorData.detail;
+                }
+            } catch (_) {
+                // JSON parse failed, keep the default network error message
             }
+            throw new Error(errorMessage);
         }
         return response.json();
     } catch (err) {

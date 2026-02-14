@@ -1,5 +1,5 @@
 
-import requests
+import httpx
 from sqlmodel import select
 from models import Product
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,43 +8,40 @@ from config import settings
 
 EXTERNAL_API_URL = settings.EXTERNAL_API_URL
 
-def fetch_external_products():
+async def fetch_external_products():
     """
-    Fetches products from the external FoodPlanner API.
+    Fetches products from the external FoodPlanner API (async).
     Returns list of products or raises exception on error.
     """
-    response = None
     try:
         print(f"Fetching products from {EXTERNAL_API_URL}...")
-        response = requests.get(EXTERNAL_API_URL, timeout=10)
-        
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(EXTERNAL_API_URL)
+
         # Log response details for debugging
         print(f"Response status code: {response.status_code}")
         print(f"Response headers: {response.headers.get('content-type', 'unknown')}")
-        
+
         response.raise_for_status()
-        
+
         # Check if response has content before trying to parse JSON
         if not response.text:
             raise Exception("External API returned empty response")
-        
+
         products = response.json()
         print(f"✅ Successfully fetched {len(products)} products")
         return products
-    except requests.Timeout:
+    except httpx.TimeoutException:
         raise Exception(f"Ошибка соединения с внешним API: Connection timeout")
-    except requests.ConnectionError:
+    except httpx.ConnectError:
         raise Exception(f"Ошибка соединения с внешним API: Cannot connect to {EXTERNAL_API_URL}")
-    except requests.HTTPError as e:
+    except httpx.HTTPStatusError as e:
         error_msg = f"Ошибка HTTP от внешнего API: {e.response.status_code}"
         if e.response.text:
-            error_msg += f"\nResponse: {e.response.text[:500]}"  # First 500 chars
+            error_msg += f"\nResponse: {e.response.text[:500]}"
         raise Exception(error_msg)
-    except (ValueError, requests.exceptions.JSONDecodeError) as e:
+    except ValueError as e:
         error_msg = f"Ошибка парсинга данных от внешнего API: {e}"
-        if response and response.text:
-            error_msg += f"\nReceived content (first 500 chars): {response.text[:500]}"
-            error_msg += f"\nContent-Type: {response.headers.get('content-type', 'unknown')}"
         raise Exception(error_msg)
     except Exception as e:
         raise Exception(f"Неизвестная ошибка при обращении к API: {str(e)}")
@@ -55,7 +52,7 @@ async def import_products_from_service(session: AsyncSession) -> dict:
     Returns a dict with statistics.
     """
     print(f"Attempting to fetch from {EXTERNAL_API_URL}...")
-    external_products = fetch_external_products()
+    external_products = await fetch_external_products()
     print(f"Fetched {len(external_products)} products.")
     
     stats = {
