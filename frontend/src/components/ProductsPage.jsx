@@ -222,7 +222,7 @@ const ProductsPage = () => {
                             <label className="form-label small text-muted">Цена</label>
                             <div className="input-group">
                                 <input
-                                    type="number" step="0.01"
+                                    type="number" step="0.1" min="0"
                                     className="form-control"
                                     value={formData.price}
                                     onChange={e => setFormData({ ...formData, price: e.target.value })}
@@ -237,7 +237,7 @@ const ProductsPage = () => {
                             <div className="col-4">
                                 <label className="form-label small text-muted">Вес</label>
                                 <div className="input-group">
-                                    <input type="number" className="form-control px-2" placeholder="..."
+                                    <input type="number" step="0.1" min="0" className="form-control px-2" placeholder="..."
                                         value={formData.weight}
                                         onChange={e => setFormData({ ...formData, weight: e.target.value })}
                                     />
@@ -254,7 +254,7 @@ const ProductsPage = () => {
                             </div>
                             <div className="col-4">
                                 <label className="form-label small text-muted">Ккал</label>
-                                <input type="number" className="form-control px-2" placeholder="..."
+                                <input type="number" step="0.1" min="0" className="form-control px-2" placeholder="..."
                                     value={formData.calories}
                                     onChange={e => setFormData({ ...formData, calories: e.target.value })}
                                 />
@@ -263,21 +263,21 @@ const ProductsPage = () => {
                         <div className="row mb-3">
                             <div className="col-4">
                                 <label className="form-label small text-muted">Белки</label>
-                                <input type="number" className="form-control px-2" placeholder="..." step="0.1"
+                                <input type="number" className="form-control px-2" placeholder="..." step="0.1" min="0"
                                     value={formData.proteins}
                                     onChange={e => setFormData({ ...formData, proteins: e.target.value })}
                                 />
                             </div>
                             <div className="col-4">
                                 <label className="form-label small text-muted">Жиры</label>
-                                <input type="number" className="form-control px-2" placeholder="..." step="0.1"
+                                <input type="number" className="form-control px-2" placeholder="..." step="0.1" min="0"
                                     value={formData.fats}
                                     onChange={e => setFormData({ ...formData, fats: e.target.value })}
                                 />
                             </div>
                             <div className="col-4">
                                 <label className="form-label small text-muted">Углеводы</label>
-                                <input type="number" className="form-control px-2" placeholder="..." step="0.1"
+                                <input type="number" className="form-control px-2" placeholder="..." step="0.1" min="0"
                                     value={formData.carbs}
                                     onChange={e => setFormData({ ...formData, carbs: e.target.value })}
                                 />
@@ -286,7 +286,7 @@ const ProductsPage = () => {
                         <div className="row mb-3">
                             <div className="col-4">
                                 <label className="form-label small text-muted">Шт.</label>
-                                <input type="number" className="form-control px-2" placeholder="..."
+                                <input type="number" step="1" min="0" className="form-control px-2" placeholder="..."
                                     value={formData.quantity}
                                     onChange={e => setFormData({ ...formData, quantity: e.target.value })}
                                 />
