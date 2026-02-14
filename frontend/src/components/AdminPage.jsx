@@ -175,6 +175,34 @@ const AdminPage = () => {
                     </form>
                 </div>
 
+                {/* Data Export/Import */}
+                <div className="glass-card p-4 mb-4">
+                    <h5 className="mb-3">💾 Данные</h5>
+                    <p className="text-muted small mb-3">
+                        Сохранение и загрузка товаров из файла на сервере (JSON). При импорте товары с одинаковым названием пропускаются.
+                    </p>
+                    <div className="d-flex gap-2">
+                        <button
+                            className="btn btn-premium flex-fill"
+                            onClick={handleExport}
+                            disabled={exporting}
+                        >
+                            {exporting ? (
+                                <span><span className="spinner-border spinner-border-sm me-2"></span>Экспорт...</span>
+                            ) : '📤 Сохранить в файл'}
+                        </button>
+                        <button
+                            className="btn btn-outline-primary flex-fill"
+                            onClick={handleImportFile}
+                            disabled={importing}
+                        >
+                            {importing ? (
+                                <span><span className="spinner-border spinner-border-sm me-2"></span>Импорт...</span>
+                            ) : '📥 Загрузить из файла'}
+                        </button>
+                    </div>
+                </div>
+
                 {/* Telegram Settings */}
                 <div className="glass-card p-4 mb-4">
                     <h5 className="mb-3">🤖 Настройка Telegram Бота</h5>
