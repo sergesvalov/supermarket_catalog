@@ -3,6 +3,7 @@ import ProductsPage from './components/ProductsPage'
 import ListsPage from './components/ListsPage'
 import ShopsPage from './components/ShopsPage'
 import AdminPage from './components/AdminPage'
+import ReportsPage from './components/ReportsPage'
 import { AppProvider } from './context/AppContext'
 
 function App() {
@@ -13,6 +14,7 @@ function App() {
             case 'products': return <ProductsPage />
             case 'lists': return <ListsPage />
             case 'shops': return <ShopsPage />
+            case 'reports': return <ReportsPage />
             case 'admin': return <AdminPage />
             default: return <ProductsPage />
         }
@@ -47,6 +49,14 @@ function App() {
                                 onClick={() => setActiveTab('shops')}
                             >
                                 🏪 Магазины
+                            </button>
+                        </li>
+                        <li className="nav-item">
+                            <button
+                                className={`nav-link ${activeTab === 'reports' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('reports')}
+                            >
+                                📊 Отчёты
                             </button>
                         </li>
                         <li className="nav-item">
