@@ -3,7 +3,20 @@ import { useAppContext } from '../context/AppContext';
 import { api } from '../api';
 
 const ProductsPage = () => {
-    const { products, shops, currencySymbol, refreshProducts } = useAppContext();
+    const { products, shops, currencySymbol, getCurrencySymbol, refreshProducts } = useAppContext();
+
+    // Helper: get currency symbol for a product (shop currency or global fallback)
+    const getProductCurrency = (product) => {
+        if (product.shop?.currency) return getCurrencySymbol(product.shop.currency);
+        return currencySymbol;
+    };
+
+    // Helper: get currency symbol for a shop_id from the shops list
+    const getShopCurrencyById = (shopId) => {
+        if (!shopId) return currencySymbol;
+        const shop = shops.find(s => s.id === parseInt(shopId));
+        return shop?.currency ? getCurrencySymbol(shop.currency) : currencySymbol;
+    };
     const [searchTerm, setSearchTerm] = useState('');
     const [sortBy, setSortBy] = useState('date');
 
@@ -137,7 +150,7 @@ const ProductsPage = () => {
                                             .map((h, idx) => (
                                                 <tr key={idx} className="border-bottom border-secondary-subtle">
                                                     <td>{new Date(h.created_at).toLocaleDateString()} {new Date(h.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                                                    <td className="text-end fw-bold">{h.price.toFixed(2)} {currencySymbol}</td>
+                                                    <td className="text-end fw-bold">{h.price.toFixed(2)} {getProductCurrency(historyProduct)}</td>
                                                 </tr>
                                             ))}
                                     </tbody>
@@ -202,7 +215,7 @@ const ProductsPage = () => {
                             </select>
                         </div>
                         <div className="mb-3">
-                            <label className="form-label small text-muted">Цена ({currencySymbol})</label>
+                            <label className="form-label small text-muted">Цена ({getShopCurrencyById(formData.shop_id)})</label>
                             <input
                                 type="number" step="0.01"
                                 className="form-control"
@@ -336,7 +349,7 @@ const ProductsPage = () => {
                             </div>
                             <div className="d-flex align-items-center gap-2">
                                 <span className="fs-5 fw-bold text-primary me-3">
-                                    {p.price.toFixed(2)} {currencySymbol}
+                                    {p.price.toFixed(2)} {getProductCurrency(p)}
                                 </span>
                                 <button
                                     className="btn btn-outline-info btn-sm rounded-circle me-1"

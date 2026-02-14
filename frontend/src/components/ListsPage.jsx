@@ -3,7 +3,13 @@ import { useAppContext } from '../context/AppContext';
 import { api } from '../api';
 
 const ListsPage = () => {
-    const { lists, products, refreshLists, currency } = useAppContext();
+    const { lists, products, refreshLists, currency, getCurrencySymbol, currencySymbol } = useAppContext();
+
+    // Helper: get currency symbol for a product
+    const getProductCurrency = (product) => {
+        if (product?.shop?.currency) return getCurrencySymbol(product.shop.currency);
+        return currencySymbol;
+    };
     const [view, setView] = useState('all'); // 'all' or 'single'
     const [activeList, setActiveList] = useState(null);
     const [newList, setNewList] = useState('');
@@ -86,9 +92,16 @@ const ListsPage = () => {
         ? products.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase())).slice(0, 5)
         : [];
 
-    const totalSum = activeList?.items?.reduce((sum, item) => {
-        return sum + (item.product?.price || 0) * item.quantity;
-    }, 0) || 0;
+    // Group totals by currency
+    const currencyTotals = {};
+    activeList?.items?.forEach(item => {
+        const sym = getProductCurrency(item.product);
+        const amount = (item.product?.price || 0) * item.quantity;
+        currencyTotals[sym] = (currencyTotals[sym] || 0) + amount;
+    });
+    const totalDisplay = Object.entries(currencyTotals)
+        .map(([sym, total]) => `${total.toFixed(2)} ${sym}`)
+        .join(' / ') || '0.00';
 
     if (view === 'single' && activeList) {
         return (
@@ -99,7 +112,7 @@ const ListsPage = () => {
                     </button>
                     <h3 className="m-0 ms-2 fw-bold">{activeList.name}</h3>
                     <div className="ms-auto fs-4 fw-bold text-primary">
-                        {totalSum.toFixed(2)} {currency}
+                        {totalDisplay}
                     </div>
                     <button className="btn btn-outline-primary" onClick={sendToTelegram}>
                         <i className="bi bi-telegram"></i>
@@ -125,7 +138,7 @@ const ListsPage = () => {
                                         onClick={() => addItem(p.id)}
                                     >
                                         <span>{p.name}</span>
-                                        <span className="badge bg-primary rounded-pill">{p.price} {currency}</span>
+                                        <span className="badge bg-primary rounded-pill">{p.price} {getProductCurrency(p)}</span>
                                     </button>
                                 ))}
                             </div>

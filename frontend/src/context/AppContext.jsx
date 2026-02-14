@@ -9,12 +9,11 @@ export const AppProvider = ({ children }) => {
     const [lists, setLists] = useState([]);
     const [currency, setCurrency] = useState('EUR');
 
-    const currencySymbols = {
-        'EUR': '€',
-        'USD': '$',
-        'RUB': '₽'
+    const getCurrencySymbol = (code) => {
+        const symbols = { 'EUR': '€', 'USD': '$', 'RUB': '₽' };
+        return symbols[code] || code;
     };
-    const currencySymbol = currencySymbols[currency] || currency;
+    const currencySymbol = getCurrencySymbol(currency);
 
     const [loading, setLoading] = useState(false);
 
@@ -67,6 +66,7 @@ export const AppProvider = ({ children }) => {
         lists,
         currency,
         currencySymbol,
+        getCurrencySymbol,
         loading,
         setCurrency,
         refreshProducts,

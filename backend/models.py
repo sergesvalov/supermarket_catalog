@@ -4,11 +4,32 @@ from sqlmodel import Field, SQLModel, Relationship
 from pydantic import field_validator
 
 # --- Shop ---
+ALLOWED_CURRENCIES = ["EUR", "USD", "RUB"]
+
 class ShopBase(SQLModel):
     name: str = Field(index=True, unique=True)
+    currency: str = Field(default="EUR")
+
+    @field_validator('currency')
+    @classmethod
+    def validate_currency(cls, v):
+        if v not in ALLOWED_CURRENCIES:
+            raise ValueError(f'Currency must be one of {ALLOWED_CURRENCIES}')
+        return v
 
 class ShopCreate(ShopBase):
     pass
+
+class ShopUpdate(SQLModel):
+    name: Optional[str] = None
+    currency: Optional[str] = None
+
+    @field_validator('currency')
+    @classmethod
+    def validate_currency(cls, v):
+        if v is not None and v not in ALLOWED_CURRENCIES:
+            raise ValueError(f'Currency must be one of {ALLOWED_CURRENCIES}')
+        return v
 
 class Shop(ShopBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -136,7 +157,6 @@ class AppConfig(SQLModel, table=True):
     @field_validator('currency')
     @classmethod
     def validate_currency(cls, v):
-        allowed = ["EUR", "USD", "RUB"]
-        if v not in allowed:
-            raise ValueError(f'Currency must be one of {allowed}')
+        if v not in ALLOWED_CURRENCIES:
+            raise ValueError(f'Currency must be one of {ALLOWED_CURRENCIES}')
         return v

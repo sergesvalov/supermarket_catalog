@@ -41,6 +41,7 @@ export const api = {
     shops: {
         list: () => request('/shops'),
         create: (data) => request('/shops', 'POST', data),
+        update: (id, data) => request(`/shops/${id}`, 'PUT', data),
         delete: (id) => request(`/shops/${id}`, 'DELETE')
     },
     lists: {
