@@ -234,10 +234,10 @@ const ProductsPage = () => {
                         <div className="row mb-3">
                         </div>
                         <div className="row mb-3">
-                            <div className="col-4">
+                            <div className="col-6">
                                 <label className="form-label small text-muted">Вес</label>
                                 <div className="input-group">
-                                    <input type="number" step="0.1" min="0" className="form-control px-2" placeholder="..."
+                                    <input type="number" step="0.1" min="0" className="form-control" placeholder="..."
                                         value={formData.weight}
                                         onChange={e => setFormData({ ...formData, weight: e.target.value })}
                                     />
@@ -252,9 +252,9 @@ const ProductsPage = () => {
                                     </select>
                                 </div>
                             </div>
-                            <div className="col-4">
+                            <div className="col-6">
                                 <label className="form-label small text-muted">Ккал</label>
-                                <input type="number" step="0.1" min="0" className="form-control px-2" placeholder="..."
+                                <input type="number" step="0.1" min="0" className="form-control" placeholder="..."
                                     value={formData.calories}
                                     onChange={e => setFormData({ ...formData, calories: e.target.value })}
                                 />
