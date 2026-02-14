@@ -64,6 +64,8 @@ export const api = {
     admin: {
         getConfig: () => request('/admin/config'),
         saveConfig: (data) => request('/admin/config', 'POST', data),
-        importProducts: () => request('/admin/import', 'POST')
+        importProducts: () => request('/admin/import', 'POST'),
+        exportProducts: () => request('/admin/export', 'POST'),
+        importFromFile: () => request('/admin/import-file', 'POST')
     }
 };

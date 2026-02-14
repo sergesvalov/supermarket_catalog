@@ -86,6 +86,35 @@ const AdminPage = () => {
         }
     };
 
+    const [exporting, setExporting] = useState(false);
+    const [importing, setImporting] = useState(false);
+
+    const handleExport = async () => {
+        setExporting(true);
+        try {
+            const result = await api.admin.exportProducts();
+            alert(result.message);
+        } catch (e) {
+            alert('Ошибка экспорта: ' + e.message);
+        } finally {
+            setExporting(false);
+        }
+    };
+
+    const handleImportFile = async () => {
+        if (!confirm('Импортировать товары из файла? Существующие товары с таким же названием будут пропущены.')) return;
+        setImporting(true);
+        try {
+            const result = await api.admin.importFromFile();
+            alert(result.message);
+            window.location.reload();
+        } catch (e) {
+            alert('Ошибка импорта: ' + e.message);
+        } finally {
+            setImporting(false);
+        }
+    };
+
     return (
         <div className="row justify-content-center">
             <div className="col-md-6">
