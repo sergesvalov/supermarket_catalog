@@ -8,6 +8,7 @@ export const AppProvider = ({ children }) => {
     const [shops, setShops] = useState([]);
     const [lists, setLists] = useState([]);
     const [currency, setCurrency] = useState('EUR');
+    const [exchangeRates, setExchangeRates] = useState({ usd_rate: 0, rub_rate: 0 });
 
     const getCurrencySymbol = (code) => {
         const symbols = { 'EUR': '€', 'USD': '$', 'RUB': '₽' };
@@ -36,6 +37,12 @@ export const AppProvider = ({ children }) => {
             setLists(listsData);
             if (adminConfig && adminConfig.currency) {
                 setCurrency(adminConfig.currency);
+            }
+            if (adminConfig) {
+                setExchangeRates({
+                    usd_rate: adminConfig.usd_rate || 0,
+                    rub_rate: adminConfig.rub_rate || 0
+                });
             }
         } catch (error) {
             console.error("Failed to load initial data", error);
@@ -69,6 +76,8 @@ export const AppProvider = ({ children }) => {
         getCurrencySymbol,
         loading,
         setCurrency,
+        exchangeRates,
+        setExchangeRates,
         refreshProducts,
         refreshShops,
         refreshLists

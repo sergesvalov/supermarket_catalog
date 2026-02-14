@@ -3,8 +3,10 @@ import { useAppContext } from '../context/AppContext';
 import { api } from '../api';
 
 const AdminPage = () => {
-    const { currency, setCurrency } = useAppContext();
+    const { currency, setCurrency, setExchangeRates } = useAppContext();
     const [selectedCurrency, setSelectedCurrency] = useState(currency);
+    const [usdRate, setUsdRate] = useState(0);
+    const [rubRate, setRubRate] = useState(0);
 
     // Telegram State
     const [token, setToken] = useState('');
@@ -17,23 +19,39 @@ const AdminPage = () => {
 
     const loadData = async () => {
         try {
-            const config = await api.telegram.getConfig();
-            if (config) setToken(config.bot_token || '');
-            const usersData = await api.telegram.getUsers();
+            const [adminConfig, tgConfig, usersData] = await Promise.all([
+                api.admin.getConfig(),
+                api.telegram.getConfig(),
+                api.telegram.getUsers()
+            ]);
+            if (adminConfig) {
+                setSelectedCurrency(adminConfig.currency || 'EUR');
+                setUsdRate(adminConfig.usd_rate || 0);
+                setRubRate(adminConfig.rub_rate || 0);
+            }
+            if (tgConfig) setToken(tgConfig.bot_token || '');
             setUsers(usersData);
         } catch (e) {
             console.error(e);
         }
     };
 
-    const handleSaveCurrency = async (e) => {
+    const handleSaveSettings = async (e) => {
         e.preventDefault();
         try {
-            await api.admin.saveConfig(selectedCurrency);
-            setCurrency(selectedCurrency); // Update global state
-            alert('Настройки валюты сохранены!');
+            await api.admin.saveConfig({
+                currency: selectedCurrency,
+                usd_rate: parseFloat(usdRate) || 0,
+                rub_rate: parseFloat(rubRate) || 0
+            });
+            setCurrency(selectedCurrency);
+            setExchangeRates({
+                usd_rate: parseFloat(usdRate) || 0,
+                rub_rate: parseFloat(rubRate) || 0
+            });
+            alert('Настройки сохранены!');
         } catch (error) {
-            alert("Error: " + error.message);
+            alert("Ошибка: " + error.message);
         }
     };
 
@@ -74,7 +92,7 @@ const AdminPage = () => {
                 {/* Apps Settings */}
                 <div className="glass-card p-4 mb-4">
                     <h5 className="mb-3">⚙️ Администрирование</h5>
-                    <form onSubmit={handleSaveCurrency}>
+                    <form onSubmit={handleSaveSettings}>
                         <div className="mb-3">
                             <label className="form-label">Валюта приложения</label>
                             <select
@@ -90,7 +108,41 @@ const AdminPage = () => {
                                 Изменение валюты обновит отображение цен во всем приложении.
                             </div>
                         </div>
-                        <button type="submit" className="btn btn-premium w-100">Сохранить настройки валюты</button>
+
+                        <hr className="my-3" />
+                        <h6 className="mb-3">💱 Курсы валют (относительно EUR)</h6>
+
+                        <div className="row mb-3">
+                            <div className="col-6">
+                                <label className="form-label small text-muted">1 € = ? $</label>
+                                <div className="input-group">
+                                    <input
+                                        type="number" step="0.01" min="0"
+                                        className="form-control"
+                                        value={usdRate}
+                                        onChange={e => setUsdRate(e.target.value)}
+                                    />
+                                    <span className="input-group-text">$</span>
+                                </div>
+                            </div>
+                            <div className="col-6">
+                                <label className="form-label small text-muted">1 € = ? ₽</label>
+                                <div className="input-group">
+                                    <input
+                                        type="number" step="0.01" min="0"
+                                        className="form-control"
+                                        value={rubRate}
+                                        onChange={e => setRubRate(e.target.value)}
+                                    />
+                                    <span className="input-group-text">₽</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="form-text text-muted mb-3">
+                            Курсы используются для пересчёта цен между валютами.
+                        </div>
+
+                        <button type="submit" className="btn btn-premium w-100">Сохранить настройки</button>
                     </form>
                 </div>
 

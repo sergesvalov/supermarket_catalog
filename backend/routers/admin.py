@@ -26,6 +26,8 @@ async def update_config(config_in: AppConfig, session: AsyncSession = Depends(ge
         session.add(config)
     
     config.currency = config_in.currency
+    config.usd_rate = config_in.usd_rate
+    config.rub_rate = config_in.rub_rate
     session.add(config)
     await session.commit()
     await session.refresh(config)

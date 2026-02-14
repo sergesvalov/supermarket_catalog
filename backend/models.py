@@ -153,6 +153,8 @@ class CatalogExport(SQLModel):
 class AppConfig(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     currency: str = Field(default="EUR")
+    usd_rate: float = Field(default=0)
+    rub_rate: float = Field(default=0)
     
     @field_validator('currency')
     @classmethod
