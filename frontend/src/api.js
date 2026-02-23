@@ -59,7 +59,8 @@ export const api = {
         saveConfig: (token) => request('/telegram/config', 'POST', { bot_token: token }),
         getUsers: () => request('/telegram/users'),
         addUser: (name, chat_id) => request('/telegram/users', 'POST', { name, chat_id }),
-        deleteUser: (id) => request(`/telegram/users/${id}`, 'DELETE')
+        deleteUser: (id) => request(`/telegram/users/${id}`, 'DELETE'),
+        sendReport: (text) => request('/telegram/send_report', 'POST', { text })
     },
     admin: {
         getConfig: () => request('/admin/config'),

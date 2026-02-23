@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
+import { api } from '../api';
 
 const ReportsPage = () => {
     const { products, shops, getCurrencySymbol, exchangeRates } = useAppContext();
@@ -112,6 +113,43 @@ const ReportsPage = () => {
         return { total, hasError };
     }, [shopProducts, displayCurrency, exchangeRates, priceViewMode]);
 
+    const handleSendToTelegram = async () => {
+        if (shopProducts.length === 0) return;
+
+        let msg = ['📊 <b>Отчет по магазинам</b>\n'];
+
+        if (grandTotal) {
+            msg.push(`💰 <b>Общий итог: ${grandTotal.total.toFixed(2)} ${getCurrencySymbol(displayCurrency)}</b>\n`);
+        }
+
+        shopProducts.forEach(({ shop, items }) => {
+            const shopCur = shop.currency || 'EUR';
+            msg.push(`🏪 <b>${shop.name}</b>`);
+
+            items.forEach(p => {
+                const price = getComputedPrice(p);
+                const formattedPrice = formatPrice(price, shopCur);
+
+                let modeText = '';
+                if (priceViewMode === 'per_unit') {
+                    if (p.weight > 0) modeText = ' (за кг)';
+                    else if (p.quantity > 1) modeText = ' (за 10 шт)';
+                }
+
+                msg.push(`▫️ ${p.name}${modeText}: <b>${formattedPrice}</b>`);
+            });
+
+            msg.push(`<i>Итого по магазину:</i> <b>${getShopTotal(items, shopCur)}</b>\n`);
+        });
+
+        try {
+            await api.telegram.sendReport(msg.join('\n'));
+            alert('Отчет отправлен в Telegram!');
+        } catch (error) {
+            alert('Ошибка отправки: ' + error.message);
+        }
+    };
+
     return (
         <div>
             {/* Shop selector + currency */}
@@ -188,6 +226,12 @@ const ReportsPage = () => {
                             {grandTotal.hasError && <span className="text-warning ms-1">(неполный — задайте курсы)</span>}
                         </span>
                     )}
+                    <button
+                        className="btn btn-sm btn-premium ms-3"
+                        onClick={handleSendToTelegram}
+                    >
+                        <i className="bi bi-telegram me-1"></i> Отправить
+                    </button>
                 </div>
             )}
 

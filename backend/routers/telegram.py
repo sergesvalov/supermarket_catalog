@@ -7,8 +7,12 @@ from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from database import get_session
 from models import TelegramConfig, TelegramUser, ShoppingList, ShoppingListItem, Product
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/telegram", tags=["Telegram"])
+
+class ReportPayload(BaseModel):
+    text: str
 
 # Хелпер для фоновой задачи (остается синхронным, так как requests синхронный, 
 # и BackgroundTasks запускает его в thread pool, что нормально для блокирующих операций)
@@ -101,5 +105,21 @@ async def send_to_tg(list_id: int, bg: BackgroundTasks, session: AsyncSession = 
 
     for u in users:
         bg.add_task(send_telegram_task, config.bot_token, u.chat_id, full_text)
+    
+    return {"ok": True}
+
+@router.post("/send_report")
+async def send_report_to_tg(payload: ReportPayload, bg: BackgroundTasks, session: AsyncSession = Depends(get_session)):
+    res_conf = await session.execute(select(TelegramConfig))
+    config = res_conf.scalars().first()
+    
+    res_users = await session.execute(select(TelegramUser))
+    users = res_users.scalars().all()
+    
+    if not config or not users:
+        raise HTTPException(status_code=400, detail="Настройте бота и юзеров")
+
+    for u in users:
+        bg.add_task(send_telegram_task, config.bot_token, u.chat_id, payload.text)
     
     return {"ok": True}
