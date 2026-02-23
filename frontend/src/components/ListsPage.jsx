@@ -3,7 +3,7 @@ import { useAppContext } from '../context/AppContext';
 import { api } from '../api';
 
 const ListsPage = () => {
-    const { lists, products, refreshLists, currency, getCurrencySymbol, currencySymbol } = useAppContext();
+    const { lists, products, shops, refreshLists, currency, getCurrencySymbol, currencySymbol } = useAppContext();
 
     // Helper: get currency symbol for a product
     const getProductCurrency = (product) => {
@@ -14,6 +14,7 @@ const ListsPage = () => {
     const [activeList, setActiveList] = useState(null);
     const [newList, setNewList] = useState('');
     const [productSearch, setProductSearch] = useState('');
+    const [filterShopId, setFilterShopId] = useState('');
 
     const handleCreateList = async (e) => {
         e.preventDefault();
@@ -87,10 +88,12 @@ const ListsPage = () => {
         }
     };
 
-    // Filter products for search
-    const searchResults = productSearch
-        ? products.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase())).slice(0, 5)
-        : [];
+    // Filter products for search and shop
+    const searchResults = products.filter(p => {
+        const matchesSearch = p.name.toLowerCase().includes(productSearch.toLowerCase());
+        const matchesShop = filterShopId ? (p.shop_id === parseInt(filterShopId, 10) || p.shop?.id === parseInt(filterShopId, 10)) : true;
+        return matchesSearch && matchesShop;
+    });
 
     // Group totals by currency
     const currencyTotals = {};
@@ -123,14 +126,27 @@ const ListsPage = () => {
                     <div className="col-md-5 mb-4">
                         <div className="glass-card p-3">
                             <h5 className="mb-3">🔍 Добавить товар</h5>
-                            <input
-                                type="text"
-                                className="form-control mb-3"
-                                placeholder="Начните вводить..."
-                                value={productSearch}
-                                onChange={e => setProductSearch(e.target.value)}
-                            />
-                            <div className="list-group scrollable-list" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                            <div className="d-flex gap-2 mb-3">
+                                <input
+                                    type="text"
+                                    className="form-control"
+                                    style={{ flex: 1 }}
+                                    placeholder="Начните вводить..."
+                                    value={productSearch}
+                                    onChange={e => setProductSearch(e.target.value)}
+                                />
+                                <select
+                                    className="form-select w-auto"
+                                    value={filterShopId}
+                                    onChange={e => setFilterShopId(e.target.value)}
+                                >
+                                    <option value="">🏪 Все магазины</option>
+                                    {shops && shops.map(s => (
+                                        <option key={s.id} value={s.id}>{s.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="list-group scrollable-list" style={{ maxHeight: '400px', overflowY: 'auto' }}>
                                 {searchResults.map(p => (
                                     <button
                                         key={p.id}
