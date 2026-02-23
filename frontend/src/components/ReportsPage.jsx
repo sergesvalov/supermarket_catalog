@@ -64,6 +64,9 @@ const ReportsPage = () => {
         if (priceViewMode === 'per_kg' && p.weight > 0) {
             return (p.price / p.weight) * 1000;
         }
+        if (priceViewMode === 'per_piece' && p.quantity > 1) {
+            return (p.price / p.quantity) * 10;
+        }
         return p.price;
     };
 
@@ -166,6 +169,7 @@ const ReportsPage = () => {
                         >
                             <option value="actual">Как есть</option>
                             <option value="per_kg">За 1 кг / 1 л</option>
+                            <option value="per_piece">За 10 шт</option>
                         </select>
                     </div>
                 </div>
@@ -230,6 +234,7 @@ const ReportsPage = () => {
                                                 <td className="fw-medium">
                                                     {p.name}
                                                     {priceViewMode === 'per_kg' && p.weight > 0 && <span className="badge bg-info text-dark ms-2 fw-normal" style={{ fontSize: '0.7em' }}>за кг</span>}
+                                                    {priceViewMode === 'per_piece' && p.quantity > 1 && <span className="badge bg-info text-dark ms-2 fw-normal" style={{ fontSize: '0.7em' }}>за 10 шт</span>}
                                                 </td>
                                                 <td><span className="badge bg-secondary bg-opacity-25 text-body">{p.category}</span></td>
                                                 <td className="text-end fw-bold text-primary">
