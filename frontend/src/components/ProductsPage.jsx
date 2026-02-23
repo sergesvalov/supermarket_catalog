@@ -118,13 +118,14 @@ const ProductsPage = () => {
             return new Date(b.created_at) - new Date(a.created_at);
         });
 
-    const categories = ['Без категории', 'продукты', 'хоз.товары', 'растения', 'для дома', 'для машины'];
+    const categories = ['Без категории', 'продукты', 'хоз.товары', 'растения', 'для дома', 'для машины', 'топливо'];
     const getCategoryColor = (cat) => {
         switch (cat) {
             case 'хоз.товары': return 'bg-info text-dark';
             case 'растения': return 'bg-success';
             case 'для дома': return 'bg-warning text-dark';
             case 'для машины': return 'bg-secondary';
+            case 'топливо': return 'bg-danger text-light';
             case 'Без категории': return 'bg-light text-dark border';
             default: return 'bg-primary'; // продукты
         }
