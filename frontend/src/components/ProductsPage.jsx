@@ -19,6 +19,7 @@ const ProductsPage = () => {
     };
     const [searchTerm, setSearchTerm] = useState('');
     const [sortBy, setSortBy] = useState('date');
+    const [filterShopId, setFilterShopId] = useState('');
 
     // History State
     const [historyProduct, setHistoryProduct] = useState(null);
@@ -102,6 +103,15 @@ const ProductsPage = () => {
     // Filter and Sort
     const filteredProducts = products
         .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
+        .filter(p => {
+            if (filterShopId) {
+                const shopIdNum = parseInt(filterShopId, 10);
+                return p.shop_id === shopIdNum || p.shop?.id === shopIdNum;
+            }
+            if (!formData.shop_id) return true;
+            const shopIdNum = parseInt(formData.shop_id, 10);
+            return p.shop_id === shopIdNum || p.shop?.id === shopIdNum;
+        })
         .sort((a, b) => {
             if (sortBy === 'price') return a.price - b.price;
             if (sortBy === 'shop') return (a.shop?.name || '').localeCompare(b.shop?.name || '');
@@ -301,14 +311,25 @@ const ProductsPage = () => {
 
             {/* Product List */}
             <div className="col-md-8">
-                <div className="d-flex justify-content-between align-items-center mb-3">
+                <div className="d-flex justify-content-between align-items-center gap-2 mb-3">
                     <input
                         type="text"
-                        className="form-control w-50"
+                        className="form-control"
+                        style={{ flex: 1 }}
                         placeholder="🔍 Поиск товаров..."
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
                     />
+                    <select
+                        className="form-select w-auto"
+                        value={filterShopId}
+                        onChange={e => setFilterShopId(e.target.value)}
+                    >
+                        <option value="">🏪 Все магазины</option>
+                        {shops.map(s => (
+                            <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                    </select>
                     <select
                         className="form-select w-auto"
                         value={sortBy}
