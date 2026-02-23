@@ -153,7 +153,10 @@ const ListsPage = () => {
                                         className="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
                                         onClick={() => addItem(p.id)}
                                     >
-                                        <span>{p.name}</span>
+                                        <div>
+                                            <span>{p.name}</span>
+                                            {p.shop && <span className="badge bg-light text-dark border ms-2" style={{ fontSize: '0.7em' }}>{p.shop.name}</span>}
+                                        </div>
                                         <span className="badge bg-primary rounded-pill">{p.price} {getProductCurrency(p)}</span>
                                     </button>
                                 ))}
