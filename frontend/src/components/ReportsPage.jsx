@@ -5,6 +5,7 @@ const ReportsPage = () => {
     const { products, shops, getCurrencySymbol, exchangeRates } = useAppContext();
     const [selectedShopIds, setSelectedShopIds] = useState([]);
     const [displayCurrency, setDisplayCurrency] = useState('');
+    const [priceViewMode, setPriceViewMode] = useState('actual');
 
     const CURRENCIES = [
         { code: '', label: 'Валюта магазина' },
@@ -58,6 +59,14 @@ const ReportsPage = () => {
 
     const totalProducts = shopProducts.reduce((sum, g) => sum + g.items.length, 0);
 
+    // Helper to compute price based on view mode
+    const getComputedPrice = (p) => {
+        if (priceViewMode === 'per_kg' && p.weight > 0) {
+            return (p.price / p.weight) * 1000;
+        }
+        return p.price;
+    };
+
     // Format converted price
     const formatPrice = (price, shopCurrency) => {
         const target = displayCurrency || shopCurrency;
@@ -74,7 +83,7 @@ const ReportsPage = () => {
         let total = 0;
         let hasError = false;
         items.forEach(p => {
-            const converted = convertPrice(p.price, shopCurrency, target);
+            const converted = convertPrice(getComputedPrice(p), shopCurrency, target);
             if (converted === null) hasError = true;
             else total += converted;
         });
@@ -90,13 +99,13 @@ const ReportsPage = () => {
         let hasError = false;
         shopProducts.forEach(({ shop, items }) => {
             items.forEach(p => {
-                const converted = convertPrice(p.price, shop.currency || 'EUR', displayCurrency);
+                const converted = convertPrice(getComputedPrice(p), shop.currency || 'EUR', displayCurrency);
                 if (converted === null) hasError = true;
                 else total += converted;
             });
         });
         return { total, hasError };
-    }, [shopProducts, displayCurrency, exchangeRates]);
+    }, [shopProducts, displayCurrency, exchangeRates, priceViewMode]);
 
     return (
         <div>
@@ -127,24 +136,38 @@ const ReportsPage = () => {
                     {shops.length === 0 && <span className="text-muted">Нет магазинов</span>}
                 </div>
 
-                {/* Display currency selector */}
-                <div className="d-flex align-items-center gap-2">
-                    <label className="form-label small text-muted m-0">Показать цены в:</label>
-                    <select
-                        className="form-select form-select-sm"
-                        style={{ width: '200px' }}
-                        value={displayCurrency}
-                        onChange={e => setDisplayCurrency(e.target.value)}
-                    >
-                        {CURRENCIES.map(c => (
-                            <option key={c.code} value={c.code}>{c.label}</option>
-                        ))}
-                    </select>
-                    {displayCurrency && (
-                        <span className="small text-muted">
-                            (1€ = {exchangeRates.usd_rate || '?'}$ · {exchangeRates.rub_rate || '?'}₽)
-                        </span>
-                    )}
+                {/* Options */}
+                <div className="d-flex flex-wrap align-items-center gap-4">
+                    <div className="d-flex align-items-center gap-2">
+                        <label className="form-label small text-muted m-0">Показать цены в:</label>
+                        <select
+                            className="form-select form-select-sm"
+                            style={{ width: '200px' }}
+                            value={displayCurrency}
+                            onChange={e => setDisplayCurrency(e.target.value)}
+                        >
+                            {CURRENCIES.map(c => (
+                                <option key={c.code} value={c.code}>{c.label}</option>
+                            ))}
+                        </select>
+                        {displayCurrency && (
+                            <span className="small text-muted">
+                                (1€ = {exchangeRates.usd_rate || '?'}$ · {exchangeRates.rub_rate || '?'}₽)
+                            </span>
+                        )}
+                    </div>
+                    <div className="d-flex align-items-center gap-2">
+                        <label className="form-label small text-muted m-0 text-nowrap">Вид цены:</label>
+                        <select
+                            className="form-select form-select-sm"
+                            style={{ width: '180px' }}
+                            value={priceViewMode}
+                            onChange={e => setPriceViewMode(e.target.value)}
+                        >
+                            <option value="actual">Как есть</option>
+                            <option value="per_kg">За 1 кг / 1 л</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -204,14 +227,17 @@ const ReportsPage = () => {
                                         {items.map((p, idx) => (
                                             <tr key={p.id}>
                                                 <td className="text-muted small">{idx + 1}</td>
-                                                <td className="fw-medium">{p.name}</td>
+                                                <td className="fw-medium">
+                                                    {p.name}
+                                                    {priceViewMode === 'per_kg' && p.weight > 0 && <span className="badge bg-info text-dark ms-2 fw-normal" style={{ fontSize: '0.7em' }}>за кг</span>}
+                                                </td>
                                                 <td><span className="badge bg-secondary bg-opacity-25 text-body">{p.category}</span></td>
                                                 <td className="text-end fw-bold text-primary">
-                                                    {formatPrice(p.price, shopCur)}
+                                                    {formatPrice(getComputedPrice(p), shopCur)}
                                                 </td>
                                                 {displayCurrency && displayCurrency !== shopCur && (
                                                     <td className="text-end text-muted small">
-                                                        {p.price.toFixed(2)} {getCurrencySymbol(shopCur)}
+                                                        {getComputedPrice(p).toFixed(2)} {getCurrencySymbol(shopCur)}
                                                     </td>
                                                 )}
                                                 <td className="text-end">
@@ -236,7 +262,7 @@ const ReportsPage = () => {
                                             </td>
                                             {displayCurrency && displayCurrency !== shopCur && (
                                                 <td className="text-end text-muted small">
-                                                    {items.reduce((s, p) => s + p.price, 0).toFixed(2)} {getCurrencySymbol(shopCur)}
+                                                    {items.reduce((s, p) => s + getComputedPrice(p), 0).toFixed(2)} {getCurrencySymbol(shopCur)}
                                                 </td>
                                             )}
                                             <td colSpan="5"></td>
