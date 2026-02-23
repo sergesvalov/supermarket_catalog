@@ -7,6 +7,7 @@ const ReportsPage = () => {
     const [selectedShopIds, setSelectedShopIds] = useState([]);
     const [displayCurrency, setDisplayCurrency] = useState('');
     const [priceViewMode, setPriceViewMode] = useState('actual');
+    const [searchQuery, setSearchQuery] = useState('');
 
     const CURRENCIES = [
         { code: '', label: 'Валюта магазина' },
@@ -53,10 +54,11 @@ const ReportsPage = () => {
             const shop = shops.find(s => s.id === shopId);
             const items = products
                 .filter(p => p.shop_id === shopId)
+                .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
                 .sort((a, b) => a.name.localeCompare(b.name));
             return { shop, items };
-        }).filter(g => g.shop);
-    }, [selectedShopIds, products, shops]);
+        }).filter(g => g.shop && g.items.length > 0);
+    }, [selectedShopIds, products, shops, searchQuery]);
 
     const totalProducts = shopProducts.reduce((sum, g) => sum + g.items.length, 0);
 
@@ -181,6 +183,16 @@ const ReportsPage = () => {
 
                 {/* Options */}
                 <div className="d-flex flex-wrap align-items-center gap-4">
+                    <div className="d-flex align-items-center gap-2">
+                        <input
+                            type="text"
+                            className="form-control form-control-sm"
+                            style={{ width: '250px' }}
+                            placeholder="🔍 Поиск товаров..."
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                        />
+                    </div>
                     <div className="d-flex align-items-center gap-2">
                         <label className="form-label small text-muted m-0">Показать цены в:</label>
                         <select
