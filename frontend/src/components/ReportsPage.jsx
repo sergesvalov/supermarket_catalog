@@ -61,11 +61,13 @@ const ReportsPage = () => {
 
     // Helper to compute price based on view mode
     const getComputedPrice = (p) => {
-        if (priceViewMode === 'per_kg' && p.weight > 0) {
-            return (p.price / p.weight) * 1000;
-        }
-        if (priceViewMode === 'per_piece' && p.quantity > 1) {
-            return (p.price / p.quantity) * 10;
+        if (priceViewMode === 'per_unit') {
+            if (p.weight > 0) {
+                return (p.price / p.weight) * 1000;
+            }
+            if (p.quantity > 1) {
+                return (p.price / p.quantity) * 10;
+            }
         }
         return p.price;
     };
@@ -168,8 +170,7 @@ const ReportsPage = () => {
                             onChange={e => setPriceViewMode(e.target.value)}
                         >
                             <option value="actual">Как есть</option>
-                            <option value="per_kg">За 1 кг / 1 л</option>
-                            <option value="per_piece">За 10 шт</option>
+                            <option value="per_unit">За 1 кг / 1 л / 10 шт</option>
                         </select>
                     </div>
                 </div>
@@ -233,8 +234,8 @@ const ReportsPage = () => {
                                                 <td className="text-muted small">{idx + 1}</td>
                                                 <td className="fw-medium">
                                                     {p.name}
-                                                    {priceViewMode === 'per_kg' && p.weight > 0 && <span className="badge bg-info text-dark ms-2 fw-normal" style={{ fontSize: '0.7em' }}>за кг</span>}
-                                                    {priceViewMode === 'per_piece' && p.quantity > 1 && <span className="badge bg-info text-dark ms-2 fw-normal" style={{ fontSize: '0.7em' }}>за 10 шт</span>}
+                                                    {priceViewMode === 'per_unit' && p.weight > 0 && <span className="badge bg-info text-dark ms-2 fw-normal" style={{ fontSize: '0.7em' }}>за кг</span>}
+                                                    {priceViewMode === 'per_unit' && (!p.weight || p.weight === 0) && p.quantity > 1 && <span className="badge bg-info text-dark ms-2 fw-normal" style={{ fontSize: '0.7em' }}>за 10 шт</span>}
                                                 </td>
                                                 <td><span className="badge bg-secondary bg-opacity-25 text-body">{p.category}</span></td>
                                                 <td className="text-end fw-bold text-primary">
