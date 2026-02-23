@@ -7,7 +7,9 @@ from alembic.config import Config
 from alembic import command
 
 from config import settings
+from config import settings
 from routers import products, shops, lists, telegram, catalog, admin, categories
+from core.exceptions import AppError, app_error_handler
 
 
 @asynccontextmanager
@@ -23,6 +25,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(root_path="/api", lifespan=lifespan)
 
 # Allow CORS for frontend
+# Allow CORS for frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS,
@@ -30,6 +33,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register global error handler
+app.add_exception_handler(AppError, app_error_handler)
 
 # Подключаем роутеры
 app.include_router(products.router)

@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
+from core.exceptions import NotFoundError
 from sqlmodel import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -24,7 +25,7 @@ async def get_list(list_id: int, session: AsyncSession = Depends(get_session)):
     )
     result = await session.execute(query)
     res = result.scalars().first()
-    if not res: raise HTTPException(status_code=404)
+    if not res: raise NotFoundError("Список не найден")
     return res
 
 @router.post("", response_model=ShoppingListResponse)

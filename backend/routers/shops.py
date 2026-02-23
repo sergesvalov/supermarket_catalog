@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
+from core.exceptions import NotFoundError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 from typing import List
@@ -24,7 +25,7 @@ async def create_shop(shop_in: ShopCreate, session: AsyncSession = Depends(get_s
 async def update_shop(shop_id: int, shop_in: ShopUpdate, session: AsyncSession = Depends(get_session)):
     shop = await session.get(Shop, shop_id)
     if not shop:
-        raise HTTPException(status_code=404, detail="Магазин не найден")
+        raise NotFoundError("Магазин не найден")
     update_data = shop_in.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(shop, key, value)
