@@ -44,6 +44,12 @@ export const api = {
         update: (id, data) => request(`/shops/${id}`, 'PUT', data),
         delete: (id) => request(`/shops/${id}`, 'DELETE')
     },
+    categories: {
+        list: () => request('/categories'),
+        create: (data) => request('/categories', 'POST', data),
+        update: (id, data) => request(`/categories/${id}`, 'PUT', data),
+        delete: (id) => request(`/categories/${id}`, 'DELETE')
+    },
     lists: {
         getAll: () => request('/lists'),
         getOne: (id) => request(`/lists/${id}`),

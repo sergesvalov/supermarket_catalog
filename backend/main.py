@@ -7,7 +7,7 @@ from alembic.config import Config
 from alembic import command
 
 from config import settings
-from routers import products, shops, lists, telegram, catalog, admin
+from routers import products, shops, lists, telegram, catalog, admin, categories
 
 
 @asynccontextmanager
@@ -38,3 +38,4 @@ app.include_router(lists.router)
 app.include_router(telegram.router)
 app.include_router(catalog.router)
 app.include_router(admin.router)
+app.include_router(categories.router)

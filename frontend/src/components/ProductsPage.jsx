@@ -3,7 +3,7 @@ import { useAppContext } from '../context/AppContext';
 import { api } from '../api';
 
 const ProductsPage = () => {
-    const { products, shops, currencySymbol, getCurrencySymbol, refreshProducts } = useAppContext();
+    const { products, shops, categories, currencySymbol, getCurrencySymbol, refreshProducts, refreshCategories } = useAppContext();
 
     // Helper: get currency symbol for a product (shop currency or global fallback)
     const getProductCurrency = (product) => {
@@ -118,17 +118,47 @@ const ProductsPage = () => {
             return new Date(b.created_at) - new Date(a.created_at);
         });
 
-    const categories = ['Без категории', 'продукты', 'хоз.товары', 'растения', 'для дома', 'для машины', 'топливо'];
-    const getCategoryColor = (cat) => {
-        switch (cat) {
-            case 'хоз.товары': return 'bg-info text-dark';
-            case 'растения': return 'bg-success';
-            case 'для дома': return 'bg-warning text-dark';
-            case 'для машины': return 'bg-secondary';
-            case 'топливо': return 'bg-danger text-light';
-            case 'Без категории': return 'bg-light text-dark border';
-            default: return 'bg-primary'; // продукты
+    const getCategoryColor = (catName) => {
+        const cat = categories.find(c => c.name === catName);
+        return cat ? cat.color_class : 'bg-primary';
+    };
+
+    // Category Editor State
+    const [showCategoryEditor, setShowCategoryEditor] = useState(false);
+    const [categoryForm, setCategoryForm] = useState({ id: null, name: '', color_class: 'bg-primary' });
+
+    const openCategoryEditor = () => {
+        setShowCategoryEditor(true);
+        setCategoryForm({ id: null, name: '', color_class: 'bg-primary' });
+    };
+
+    const handleSaveCategory = async (e) => {
+        e.preventDefault();
+        try {
+            if (categoryForm.id) {
+                await api.categories.update(categoryForm.id, categoryForm);
+            } else {
+                await api.categories.create(categoryForm);
+            }
+            setCategoryForm({ id: null, name: '', color_class: 'bg-primary' });
+            refreshCategories();
+        } catch (error) {
+            alert("Error saving category: " + error.message);
         }
+    };
+
+    const handleDeleteCategory = async (id) => {
+        if (!confirm('Удалить категорию? Товары с этой категорией не удалятся, но могут потерять цвет.')) return;
+        try {
+            await api.categories.delete(id);
+            refreshCategories();
+        } catch (error) {
+            alert("Delete failed: " + error.message);
+        }
+    };
+
+    const editCategory = (cat) => {
+        setCategoryForm({ id: cat.id, name: cat.name, color_class: cat.color_class || 'bg-primary' });
     };
 
 
@@ -177,6 +207,84 @@ const ProductsPage = () => {
                 </div>
             )}
 
+            {/* Category Editor Modal */}
+            {showCategoryEditor && (
+                <div className="modal-backdrop-custom" style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }} onClick={() => setShowCategoryEditor(false)}>
+                    <div className="glass-card p-4" style={{ maxWidth: '500px', width: '90%', maxHeight: '80vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+                        <div className="d-flex justify-content-between align-items-center mb-3">
+                            <h5 className="fw-bold mb-0">Категории</h5>
+                            <button className="btn-close" onClick={() => setShowCategoryEditor(false)}></button>
+                        </div>
+
+                        <form onSubmit={handleSaveCategory} className="mb-4">
+                            <div className="row g-2 align-items-end">
+                                <div className="col-6">
+                                    <label className="form-label small text-muted">Название</label>
+                                    <input
+                                        type="text"
+                                        className="form-control form-control-sm"
+                                        required
+                                        value={categoryForm.name}
+                                        onChange={e => setCategoryForm({ ...categoryForm, name: e.target.value })}
+                                    />
+                                </div>
+                                <div className="col-4">
+                                    <label className="form-label small text-muted">Цвет</label>
+                                    <select
+                                        className="form-select form-select-sm"
+                                        value={categoryForm.color_class}
+                                        onChange={e => setCategoryForm({ ...categoryForm, color_class: e.target.value })}
+                                    >
+                                        <option value="bg-primary">Синий (Primary)</option>
+                                        <option value="bg-secondary">Серый (Secondary)</option>
+                                        <option value="bg-success">Зеленый (Success)</option>
+                                        <option value="bg-danger text-light">Красный (Danger)</option>
+                                        <option value="bg-warning text-dark">Желтый (Warning)</option>
+                                        <option value="bg-info text-dark">Голубой (Info)</option>
+                                        <option value="bg-light text-dark border">Светлый (Light)</option>
+                                        <option value="bg-dark text-light">Темный (Dark)</option>
+                                    </select>
+                                </div>
+                                <div className="col-2">
+                                    <button type="submit" className={`btn btn-sm w-100 ${categoryForm.id ? 'btn-warning' : 'btn-primary'}`}>
+                                        {categoryForm.id ? '✓' : '+'}
+                                    </button>
+                                </div>
+                            </div>
+                            {categoryForm.id && (
+                                <div className="mt-1 text-end">
+                                    <button type="button" className="btn btn-link btn-sm text-secondary p-0" onClick={() => setCategoryForm({ id: null, name: '', color_class: 'bg-primary' })}>
+                                        отмена ред.
+                                    </button>
+                                </div>
+                            )}
+                        </form>
+
+                        <div className="list-group">
+                            {categories.map(cat => (
+                                <div key={cat.id} className="list-group-item list-group-item-action d-flex justify-content-between align-items-center bg-transparent text-white border-secondary-subtle">
+                                    <div>
+                                        <span className={`badge ${cat.color_class} me-2`}>{cat.name}</span>
+                                    </div>
+                                    <div className="btn-group">
+                                        <button className="btn btn-sm btn-outline-info" onClick={() => editCategory(cat)}>
+                                            <i className="bi bi-pencil"></i>
+                                        </button>
+                                        <button className="btn btn-sm btn-outline-danger" onClick={() => handleDeleteCategory(cat.id)}>
+                                            <i className="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
 
             {/* Add/Edit Product Form */}
             <div className="col-md-4 mb-4">
@@ -205,13 +313,18 @@ const ProductsPage = () => {
 
                         <div className="mb-3">
                             <label className="form-label small text-muted">Категория</label>
-                            <select
-                                className="form-select form-control"
-                                value={formData.category}
-                                onChange={e => setFormData({ ...formData, category: e.target.value })}
-                            >
-                                {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
+                            <div className="input-group">
+                                <select
+                                    className="form-select form-control"
+                                    value={formData.category}
+                                    onChange={e => setFormData({ ...formData, category: e.target.value })}
+                                >
+                                    {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                                </select>
+                                <button type="button" className="btn btn-outline-secondary" onClick={openCategoryEditor} title="Редактор категорий">
+                                    ⚙️
+                                </button>
+                            </div>
                         </div>
 
                         <div className="mb-3">

@@ -3,6 +3,12 @@ from typing import List, Optional
 from sqlmodel import Field, SQLModel, Relationship
 from pydantic import field_validator
 
+# --- Category ---
+class Category(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True, unique=True)
+    color_class: str = Field(default="bg-primary")
+
 # --- Shop ---
 ALLOWED_CURRENCIES = ["EUR", "USD", "RUB"]
 
