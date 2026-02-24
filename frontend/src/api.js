@@ -1,3 +1,21 @@
+/**
+ * @typedef {Object} Shop
+ * @property {number} id
+ * @property {string} name
+ * @property {string} currency
+ */
+
+/**
+ * @typedef {Object} Product
+ * @property {number} id
+ * @property {string} name
+ * @property {string} category
+ * @property {number} price
+ * @property {number} [weight]
+ * @property {number} [calories]
+ * @property {Shop} [shop]
+ */
+
 const API_BASE = '/api';
 
 async function request(endpoint, method = 'GET', data = null) {

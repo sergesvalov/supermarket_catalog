@@ -7,9 +7,9 @@ from alembic.config import Config
 from alembic import command
 
 from config import settings
-from config import settings
 from routers import products, shops, lists, telegram, catalog, admin, categories
 from core.exceptions import AppError, app_error_handler
+from fastapi_pagination import add_pagination
 
 
 @asynccontextmanager
@@ -37,6 +37,10 @@ app.add_middleware(
 # Register global error handler
 app.add_exception_handler(AppError, app_error_handler)
 
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
+
 # Подключаем роутеры
 app.include_router(products.router)
 app.include_router(shops.router)
@@ -45,3 +49,5 @@ app.include_router(telegram.router)
 app.include_router(catalog.router)
 app.include_router(admin.router)
 app.include_router(categories.router)
+
+add_pagination(app)

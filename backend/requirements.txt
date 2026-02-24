@@ -7,3 +7,4 @@ requests
 aiosqlite
 alembic
 pydantic-settings
+fastapi-pagination

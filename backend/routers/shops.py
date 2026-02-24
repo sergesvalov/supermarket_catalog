@@ -5,13 +5,15 @@ from sqlmodel import select
 from typing import List
 from database import get_session
 from models import Shop, ShopCreate, ShopUpdate
+from fastapi_pagination import Page
+from fastapi_pagination.ext.sqlmodel import paginate
 
 router = APIRouter(prefix="/shops", tags=["Shops"])
 
-@router.get("", response_model=List[Shop])
+@router.get("", response_model=Page[Shop])
 async def get_shops(session: AsyncSession = Depends(get_session)):
-    result = await session.execute(select(Shop).order_by(Shop.name))
-    return result.scalars().all()
+    query = select(Shop).order_by(Shop.name)
+    return await paginate(session, query)
 
 @router.post("", response_model=Shop)
 async def create_shop(shop_in: ShopCreate, session: AsyncSession = Depends(get_session)):

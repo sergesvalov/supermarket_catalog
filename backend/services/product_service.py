@@ -1,21 +1,21 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 from sqlalchemy.orm import selectinload
-from datetime import datetime
+from datetime import datetime, timezone
 from models import Product, ProductCreate, PriceHistory, ShoppingListItem
 from core.exceptions import NotFoundError
+from fastapi_pagination.ext.sqlmodel import paginate
 
 async def get_all_products(session: AsyncSession):
     query = select(Product).options(
         selectinload(Product.shop),
         selectinload(Product.history)
     ).order_by(Product.updated_at.desc())
-    result = await session.execute(query)
-    return result.scalars().all()
+    return await paginate(session, query)
 
 async def create_product(product_in: ProductCreate, session: AsyncSession) -> Product:
     product = Product.model_validate(product_in)
-    product.updated_at = datetime.now()
+    product.updated_at = datetime.now(timezone.utc)
     session.add(product)
     await session.commit()
     await session.refresh(product)
@@ -47,7 +47,7 @@ async def update_product(product_id: int, product_data: ProductCreate, session: 
     for key, value in product_dict.items():
         setattr(db_product, key, value)
     
-    db_product.updated_at = datetime.now()
+    db_product.updated_at = datetime.now(timezone.utc)
     session.add(db_product)
     
     if price_changed:

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { BrowserRouter as Router, Routes, Route, NavLink, Navigate } from 'react-router-dom'
 import ProductsPage from './components/ProductsPage'
 import ListsPage from './components/ListsPage'
 import ShopsPage from './components/ShopsPage'
@@ -7,73 +7,54 @@ import ReportsPage from './components/ReportsPage'
 import { AppProvider } from './context/AppContext'
 
 function App() {
-    const [activeTab, setActiveTab] = useState('products')
-
-    const renderContent = () => {
-        switch (activeTab) {
-            case 'products': return <ProductsPage />
-            case 'lists': return <ListsPage />
-            case 'shops': return <ShopsPage />
-            case 'reports': return <ReportsPage />
-            case 'admin': return <AdminPage />
-            default: return <ProductsPage />
-        }
-    }
-
     return (
         <AppProvider>
-            <div className="container py-5">
-                <h2 className="mb-4 fw-bold text-white text-shadow-sm">🛒 Supermarket Catalog</h2>
+            <Router>
+                <div className="container py-5">
+                    <h2 className="mb-4 fw-bold text-white text-shadow-sm">🛒 Supermarket Catalog</h2>
 
-                <div className="glass-card p-2 mb-4 d-inline-block">
-                    <ul className="nav nav-pills" role="tablist">
-                        <li className="nav-item">
-                            <button
-                                className={`nav-link ${activeTab === 'products' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('products')}
-                            >
-                                📦 Товары
-                            </button>
-                        </li>
-                        <li className="nav-item">
-                            <button
-                                className={`nav-link ${activeTab === 'lists' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('lists')}
-                            >
-                                📝 Списки
-                            </button>
-                        </li>
-                        <li className="nav-item">
-                            <button
-                                className={`nav-link ${activeTab === 'shops' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('shops')}
-                            >
-                                🏪 Магазины
-                            </button>
-                        </li>
-                        <li className="nav-item">
-                            <button
-                                className={`nav-link ${activeTab === 'reports' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('reports')}
-                            >
-                                📊 Отчёты
-                            </button>
-                        </li>
-                        <li className="nav-item">
-                            <button
-                                className={`nav-link ${activeTab === 'admin' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('admin')}
-                            >
-                                <i className="bi bi-gear me-1"></i> Админ
-                            </button>
-                        </li>
-                    </ul>
-                </div>
+                    <div className="glass-card p-2 mb-4 d-inline-block">
+                        <ul className="nav nav-pills" role="tablist">
+                            <li className="nav-item">
+                                <NavLink to="/products" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+                                    📦 Товары
+                                </NavLink>
+                            </li>
+                            <li className="nav-item">
+                                <NavLink to="/lists" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+                                    📝 Списки
+                                </NavLink>
+                            </li>
+                            <li className="nav-item">
+                                <NavLink to="/shops" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+                                    🏪 Магазины
+                                </NavLink>
+                            </li>
+                            <li className="nav-item">
+                                <NavLink to="/reports" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+                                    📊 Отчёты
+                                </NavLink>
+                            </li>
+                            <li className="nav-item">
+                                <NavLink to="/admin" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+                                    <i className="bi bi-gear me-1"></i> Админ
+                                </NavLink>
+                            </li>
+                        </ul>
+                    </div>
 
-                <div className="tab-content">
-                    {renderContent()}
+                    <div className="tab-content">
+                        <Routes>
+                            <Route path="/" element={<Navigate to="/products" replace />} />
+                            <Route path="/products" element={<ProductsPage />} />
+                            <Route path="/lists" element={<ListsPage />} />
+                            <Route path="/shops" element={<ShopsPage />} />
+                            <Route path="/reports" element={<ReportsPage />} />
+                            <Route path="/admin" element={<AdminPage />} />
+                        </Routes>
+                    </div>
                 </div>
-            </div>
+            </Router>
         </AppProvider>
     )
 }

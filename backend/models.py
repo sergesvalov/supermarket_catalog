@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 from sqlmodel import Field, SQLModel, Relationship
 from pydantic import field_validator
@@ -9,8 +9,12 @@ class Category(SQLModel, table=True):
     name: str = Field(index=True, unique=True)
     color_class: str = Field(default="bg-primary")
 
-# --- Shop ---
 ALLOWED_CURRENCIES = ["EUR", "USD", "RUB"]
+
+def check_currency(v: Optional[str]) -> Optional[str]:
+    if v is not None and v not in ALLOWED_CURRENCIES:
+        raise ValueError(f'Currency must be one of {ALLOWED_CURRENCIES}')
+    return v
 
 class ShopBase(SQLModel):
     name: str = Field(index=True, unique=True)
@@ -19,9 +23,7 @@ class ShopBase(SQLModel):
     @field_validator('currency')
     @classmethod
     def validate_currency(cls, v):
-        if v not in ALLOWED_CURRENCIES:
-            raise ValueError(f'Currency must be one of {ALLOWED_CURRENCIES}')
-        return v
+        return check_currency(v)
 
 class ShopCreate(ShopBase):
     pass
@@ -33,9 +35,7 @@ class ShopUpdate(SQLModel):
     @field_validator('currency')
     @classmethod
     def validate_currency(cls, v):
-        if v is not None and v not in ALLOWED_CURRENCIES:
-            raise ValueError(f'Currency must be one of {ALLOWED_CURRENCIES}')
-        return v
+        return check_currency(v)
 
 class Shop(ShopBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -68,7 +68,7 @@ class Product(ProductBase, table=True):
     model_config = {"from_attributes": True}
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    updated_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     # Исправлено: убран default=None, так как Relationship() его не поддерживает
     shop: Optional[Shop] = Relationship()
@@ -90,7 +90,7 @@ class PriceHistory(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     product_id: int = Field(foreign_key="product.id")
     price: float
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     product: Product = Relationship(back_populates="history")
 
 # --- Shopping List Item ---
@@ -126,7 +126,7 @@ class ShoppingListCreate(ShoppingListBase):
 
 class ShoppingList(ShoppingListBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     items: List[ShoppingListItem] = Relationship(
         sa_relationship_kwargs={"cascade": "all, delete"}
     )
@@ -165,6 +165,4 @@ class AppConfig(SQLModel, table=True):
     @field_validator('currency')
     @classmethod
     def validate_currency(cls, v):
-        if v not in ALLOWED_CURRENCIES:
-            raise ValueError(f'Currency must be one of {ALLOWED_CURRENCIES}')
-        return v
+        return check_currency(v)

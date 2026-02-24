@@ -1,15 +1,34 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
 
 const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
-    const [products, setProducts] = useState([]);
-    const [shops, setShops] = useState([]);
-    const [categories, setCategories] = useState([]);
-    const [lists, setLists] = useState([]);
+    const queryClient = useQueryClient();
+
+    const { data: productsRes = { items: [] }, isLoading: isProductsLoading } = useQuery({ queryKey: ['products'], queryFn: api.products.list });
+    const { data: shopsRes = { items: [] }, isLoading: isShopsLoading } = useQuery({ queryKey: ['shops'], queryFn: api.shops.list });
+    const { data: categories = [], isLoading: isCategoriesLoading } = useQuery({ queryKey: ['categories'], queryFn: api.categories.list });
+    const { data: lists = [], isLoading: isListsLoading } = useQuery({ queryKey: ['lists'], queryFn: () => api.lists.getAll() });
+    const { data: adminConfig = null, isLoading: isAdminLoading } = useQuery({ queryKey: ['adminConfig'], queryFn: () => api.admin.getConfig() });
+
+    // Handle pagination objects by extracting items if they exist
+    const products = productsRes.items || productsRes;
+    const shops = shopsRes.items || shopsRes;
+
     const [currency, setCurrency] = useState('EUR');
     const [exchangeRates, setExchangeRates] = useState({ usd_rate: 0, rub_rate: 0 });
+
+    useEffect(() => {
+        if (adminConfig) {
+            if (adminConfig.currency) setCurrency(adminConfig.currency);
+            setExchangeRates({
+                usd_rate: adminConfig.usd_rate || 0,
+                rub_rate: adminConfig.rub_rate || 0
+            });
+        }
+    }, [adminConfig]);
 
     const getCurrencySymbol = (code) => {
         const symbols = { 'EUR': '€', 'USD': '$', 'RUB': '₽' };
@@ -17,63 +36,12 @@ export const AppProvider = ({ children }) => {
     };
     const currencySymbol = getCurrencySymbol(currency);
 
-    const [loading, setLoading] = useState(false);
+    const loading = isProductsLoading || isShopsLoading || isCategoriesLoading || isListsLoading || isAdminLoading;
 
-    // Initial Data Load
-    useEffect(() => {
-        loadData();
-    }, []);
-
-    const loadData = async () => {
-        setLoading(true);
-        try {
-            const [productsData, shopsData, categoriesData, listsData, adminConfig] = await Promise.all([
-                api.products.list(),
-                api.shops.list(),
-                api.categories.list(),
-                api.lists.getAll(),
-                api.admin.getConfig()
-            ]);
-            setProducts(productsData);
-            setShops(shopsData);
-            setCategories(categoriesData);
-            setLists(listsData);
-            if (adminConfig && adminConfig.currency) {
-                setCurrency(adminConfig.currency);
-            }
-            if (adminConfig) {
-                setExchangeRates({
-                    usd_rate: adminConfig.usd_rate || 0,
-                    rub_rate: adminConfig.rub_rate || 0
-                });
-            }
-        } catch (error) {
-            console.error("Failed to load initial data", error);
-            // Optionally add toast notification here
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const refreshProducts = async () => {
-        const data = await api.products.list();
-        setProducts(data);
-    };
-
-    const refreshShops = async () => {
-        const data = await api.shops.list();
-        setShops(data);
-    };
-
-    const refreshCategories = async () => {
-        const data = await api.categories.list();
-        setCategories(data);
-    };
-
-    const refreshLists = async () => {
-        const data = await api.lists.getAll();
-        setLists(data);
-    };
+    const refreshProducts = () => queryClient.invalidateQueries({ queryKey: ['products'] });
+    const refreshShops = () => queryClient.invalidateQueries({ queryKey: ['shops'] });
+    const refreshCategories = () => queryClient.invalidateQueries({ queryKey: ['categories'] });
+    const refreshLists = () => queryClient.invalidateQueries({ queryKey: ['lists'] });
 
     const value = {
         products,

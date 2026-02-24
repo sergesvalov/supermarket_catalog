@@ -4,10 +4,11 @@ from typing import List
 from database import get_session
 from models import ProductCreate, ProductResponse
 from services import product_service
+from fastapi_pagination import Page
 
 router = APIRouter(prefix="/products", tags=["Products"])
 
-@router.get("", response_model=List[ProductResponse])
+@router.get("", response_model=Page[ProductResponse])
 async def get_products(session: AsyncSession = Depends(get_session)):
     return await product_service.get_all_products(session)
 @router.post("", response_model=ProductResponse)
