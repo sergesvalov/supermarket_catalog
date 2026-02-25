@@ -66,7 +66,7 @@ const ProductsPage = () => {
                 ...formData,
                 shop_id: formData.shop_id ? parseInt(formData.shop_id) : null,
                 price: parseFloat(formData.price),
-                weight: formData.weight ? (formData.weightUnit === 'kg' ? parseFloat(formData.weight) * 1000 : parseInt(formData.weight)) : null,
+                weight: formData.weight ? (['kg', 'l'].includes(formData.weightUnit) ? parseFloat(formData.weight) * 1000 : parseFloat(formData.weight)) : null,
                 calories: formData.calories ? parseInt(formData.calories) : null,
                 proteins: formData.proteins ? parseFloat(formData.proteins) : null,
                 fats: formData.fats ? parseFloat(formData.fats) : null,
@@ -373,6 +373,8 @@ const ProductsPage = () => {
                                     >
                                         <option value="g">г</option>
                                         <option value="kg">кг</option>
+                                        <option value="ml">мл</option>
+                                        <option value="l">л</option>
                                     </select>
                                 </div>
                             </div>
@@ -478,7 +480,7 @@ const ProductsPage = () => {
                                     </span>
                                     {p.weight && (
                                         <span className="me-2 text-secondary">
-                                            {p.weight >= 1000 ? `${p.weight / 1000} кг` : `${p.weight} г`}
+                                            {p.weight >= 1000 ? `${p.weight / 1000} кг/л` : `${p.weight} г/мл`}
                                         </span>
                                     )}
                                     {p.calories && <span className="text-secondary me-2">{p.calories} ккал</span>}

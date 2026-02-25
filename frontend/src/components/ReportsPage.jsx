@@ -134,7 +134,7 @@ const ReportsPage = () => {
 
                 let modeText = '';
                 if (priceViewMode === 'per_unit') {
-                    if (p.weight > 0) modeText = ' (за кг)';
+                    if (p.weight > 0) modeText = ' (за кг/л)';
                     else if (p.quantity > 1) modeText = ' (за 10 шт)';
                 }
 
@@ -290,7 +290,7 @@ const ReportsPage = () => {
                                                 <td className="text-muted small">{idx + 1}</td>
                                                 <td className="fw-medium">
                                                     {p.name}
-                                                    {priceViewMode === 'per_unit' && p.weight > 0 && <span className="badge bg-info text-dark ms-2 fw-normal" style={{ fontSize: '0.7em' }}>за кг</span>}
+                                                    {priceViewMode === 'per_unit' && p.weight > 0 && <span className="badge bg-info text-dark ms-2 fw-normal" style={{ fontSize: '0.7em' }}>за кг/л</span>}
                                                     {priceViewMode === 'per_unit' && (!p.weight || p.weight === 0) && p.quantity > 1 && <span className="badge bg-info text-dark ms-2 fw-normal" style={{ fontSize: '0.7em' }}>за 10 шт</span>}
                                                 </td>
                                                 <td><span className="badge bg-secondary bg-opacity-25 text-body">{p.category}</span></td>
@@ -305,8 +305,8 @@ const ReportsPage = () => {
                                                 <td className="text-end">
                                                     {p.weight ? (
                                                         p.weight >= 1000
-                                                            ? `${(p.weight / 1000).toFixed(1)} кг`
-                                                            : `${p.weight} г`
+                                                            ? `${(p.weight / 1000).toFixed(1)} кг/л`
+                                                            : `${p.weight} г/мл`
                                                     ) : '—'}
                                                 </td>
                                                 <td className="text-end">{p.calories || '—'}</td>
