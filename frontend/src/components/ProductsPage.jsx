@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
+import ProductCard from './ProductCard';
+import ProductForm from './ProductForm';
 
 const ProductsPage = () => {
-    const { products, shops, categories, currencySymbol, getCurrencySymbol, refreshProducts, refreshCategories } = useAppContext();
+    const { shops, categories, currencySymbol, getCurrencySymbol, refreshCategories } = useAppContext();
+    const queryClient = useQueryClient();
 
     // Helper: get currency symbol for a product (shop currency or global fallback)
     const getProductCurrency = (product) => {
@@ -20,6 +24,14 @@ const ProductsPage = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [sortBy, setSortBy] = useState('date');
     const [filterShopId, setFilterShopId] = useState('');
+
+    // Fetch products based on filters
+    const { data: productsData = { items: [] }, isLoading, isError } = useQuery({
+        queryKey: ['products', { search: searchTerm, shop_id: filterShopId, sort_by: sortBy }],
+        queryFn: () => api.products.list({ search: searchTerm, shop_id: filterShopId, sort_by: sortBy }),
+        keepPreviousData: true
+    });
+    const filteredProducts = productsData.items || productsData;
 
     // History State
     const [historyProduct, setHistoryProduct] = useState(null);
@@ -59,64 +71,76 @@ const ProductsPage = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
+    const createMutation = useMutation({
+        mutationFn: api.products.create,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['products'] });
+            resetForm();
+        }
+    });
+
+    const updateMutation = useMutation({
+        mutationFn: ({ id, payload }) => api.products.update(id, payload),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['products'] });
+            resetForm();
+        }
+    });
+
+    const deleteMutation = useMutation({
+        mutationFn: api.products.delete,
+        onMutate: async (deletedId) => {
+            // Optimistic update
+            await queryClient.cancelQueries(['products']);
+            const previousData = queryClient.getQueryData(['products', { search: searchTerm, shop_id: filterShopId, sort_by: sortBy }]);
+
+            if (previousData) {
+                queryClient.setQueryData(
+                    ['products', { search: searchTerm, shop_id: filterShopId, sort_by: sortBy }],
+                    (old) => {
+                        const items = old.items || old;
+                        const newItems = items.filter(p => p.id !== deletedId);
+                        return old.items ? { ...old, items: newItems } : newItems;
+                    }
+                );
+            }
+            return { previousData };
+        },
+        onError: (err, deletedId, context) => {
+            queryClient.setQueryData(['products', { search: searchTerm, shop_id: filterShopId, sort_by: sortBy }], context.previousData);
+            alert("Delete failed: " + err.message);
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['products'] });
+        }
+    });
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        try {
-            const payload = {
-                ...formData,
-                shop_id: formData.shop_id ? parseInt(formData.shop_id) : null,
-                price: parseFloat(formData.price),
-                weight: formData.weight ? (['kg', 'l'].includes(formData.weightUnit) ? parseFloat(formData.weight) * 1000 : parseFloat(formData.weight)) : null,
-                calories: formData.calories ? parseInt(formData.calories) : null,
-                proteins: formData.proteins ? parseFloat(formData.proteins) : null,
-                fats: formData.fats ? parseFloat(formData.fats) : null,
-                carbs: formData.carbs ? parseFloat(formData.carbs) : null,
-                quantity: formData.quantity ? parseInt(formData.quantity) : 1
-            };
+        const payload = {
+            ...formData,
+            shop_id: formData.shop_id ? parseInt(formData.shop_id) : null,
+            price: parseFloat(formData.price),
+            weight: formData.weight ? (['kg', 'l'].includes(formData.weightUnit) ? parseFloat(formData.weight) * 1000 : parseFloat(formData.weight)) : null,
+            calories: formData.calories ? parseInt(formData.calories) : null,
+            proteins: formData.proteins ? parseFloat(formData.proteins) : null,
+            fats: formData.fats ? parseFloat(formData.fats) : null,
+            carbs: formData.carbs ? parseFloat(formData.carbs) : null,
+            quantity: formData.quantity ? parseInt(formData.quantity) : 1
+        };
+        delete payload.weightUnit;
 
-            // Remove helper field before sending
-            delete payload.weightUnit;
-
-            if (editingProduct) {
-                await api.products.update(editingProduct.id, payload);
-            } else {
-                await api.products.create(payload);
-            }
-
-            resetForm();
-            refreshProducts();
-        } catch (error) {
-            alert("Error: " + error.message);
+        if (editingProduct) {
+            updateMutation.mutate({ id: editingProduct.id, payload });
+        } else {
+            createMutation.mutate(payload);
         }
     };
 
-    const handleDelete = async (id) => {
+    const handleDelete = (id) => {
         if (!confirm('Удалить товар?')) return;
-        try {
-            await api.products.delete(id);
-            refreshProducts();
-        } catch (error) {
-            alert("Delete failed: " + error.message);
-        }
+        deleteMutation.mutate(id);
     };
-
-    // Filter and Sort
-    const filteredProducts = products
-        .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
-        .filter(p => {
-            if (filterShopId) {
-                const shopIdNum = parseInt(filterShopId, 10);
-                return p.shop_id === shopIdNum || p.shop?.id === shopIdNum;
-            }
-            if (!formData.shop_id) return true;
-            const shopIdNum = parseInt(formData.shop_id, 10);
-            return p.shop_id === shopIdNum || p.shop?.id === shopIdNum;
-        })
-        .sort((a, b) => {
-            if (sortBy === 'price') return a.price - b.price;
-            if (sortBy === 'shop') return (a.shop?.name || '').localeCompare(b.shop?.name || '');
-            return new Date(b.created_at) - new Date(a.created_at);
-        });
 
     const getCategoryColor = (catName) => {
         const cat = categories.find(c => c.name === catName);
@@ -288,141 +312,17 @@ const ProductsPage = () => {
 
             {/* Add/Edit Product Form */}
             <div className="col-md-4 mb-4">
-                <div className="glass-card p-4 sticky-top" style={{ top: '20px' }}>
-                    <div className="d-flex justify-content-between align-items-center mb-3">
-                        <h5 className="fw-bold mb-0">
-                            {editingProduct ? '✏️ Редактировать' : '✨ Добавить товар'}
-                        </h5>
-                        {editingProduct && (
-                            <button className="btn btn-sm btn-outline-secondary" onClick={resetForm}>
-                                Отмена
-                            </button>
-                        )}
-                    </div>
-                    <form onSubmit={handleSubmit}>
-                        <div className="mb-3">
-                            <label className="form-label small text-muted">Название</label>
-                            <input
-                                type="text"
-                                className="form-control"
-                                value={formData.name}
-                                onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                required
-                            />
-                        </div>
-
-                        <div className="mb-3">
-                            <label className="form-label small text-muted">Категория</label>
-                            <div className="input-group">
-                                <select
-                                    className="form-select form-control"
-                                    value={formData.category}
-                                    onChange={e => setFormData({ ...formData, category: e.target.value })}
-                                >
-                                    {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                                </select>
-                                <button type="button" className="btn btn-outline-secondary" onClick={openCategoryEditor} title="Редактор категорий">
-                                    ⚙️
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="mb-3">
-                            <label className="form-label small text-muted">Магазин</label>
-                            <select
-                                className="form-select form-control"
-                                value={formData.shop_id}
-                                onChange={e => setFormData({ ...formData, shop_id: e.target.value })}
-                            >
-                                <option value="">-- Не выбрано --</option>
-                                {shops.map(s => (
-                                    <option key={s.id} value={s.id}>
-                                        {s.name} ({getCurrencySymbol(s.currency || 'EUR')})
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="mb-3">
-                            <label className="form-label small text-muted">Цена</label>
-                            <div className="input-group">
-                                <input
-                                    type="number" step="0.01" min="0"
-                                    className="form-control"
-                                    value={formData.price}
-                                    onChange={e => setFormData({ ...formData, price: e.target.value })}
-                                    required
-                                />
-                                <span className="input-group-text">{getShopCurrencyById(formData.shop_id)}</span>
-                            </div>
-                        </div>
-                        <div className="row mb-3">
-                        </div>
-                        <div className="row mb-3">
-                            <div className="col-6">
-                                <label className="form-label small text-muted">Вес</label>
-                                <div className="input-group">
-                                    <input type="number" step="0.1" min="0" className="form-control" placeholder="..."
-                                        value={formData.weight}
-                                        onChange={e => setFormData({ ...formData, weight: e.target.value })}
-                                    />
-                                    <select
-                                        className="form-select px-1 bg-light text-dark"
-                                        style={{ maxWidth: '60px' }}
-                                        value={formData.weightUnit}
-                                        onChange={e => setFormData({ ...formData, weightUnit: e.target.value })}
-                                    >
-                                        <option value="g">г</option>
-                                        <option value="kg">кг</option>
-                                        <option value="ml">мл</option>
-                                        <option value="l">л</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div className="col-6">
-                                <label className="form-label small text-muted">Ккал</label>
-                                <input type="number" step="0.1" min="0" className="form-control" placeholder="..."
-                                    value={formData.calories}
-                                    onChange={e => setFormData({ ...formData, calories: e.target.value })}
-                                />
-                            </div>
-                        </div>
-                        <div className="row mb-3">
-                            <div className="col-4">
-                                <label className="form-label small text-muted">Белки</label>
-                                <input type="number" className="form-control px-2" placeholder="..." step="0.1" min="0"
-                                    value={formData.proteins}
-                                    onChange={e => setFormData({ ...formData, proteins: e.target.value })}
-                                />
-                            </div>
-                            <div className="col-4">
-                                <label className="form-label small text-muted">Жиры</label>
-                                <input type="number" className="form-control px-2" placeholder="..." step="0.1" min="0"
-                                    value={formData.fats}
-                                    onChange={e => setFormData({ ...formData, fats: e.target.value })}
-                                />
-                            </div>
-                            <div className="col-4">
-                                <label className="form-label small text-muted">Углеводы</label>
-                                <input type="number" className="form-control px-2" placeholder="..." step="0.1" min="0"
-                                    value={formData.carbs}
-                                    onChange={e => setFormData({ ...formData, carbs: e.target.value })}
-                                />
-                            </div>
-                        </div>
-                        <div className="row mb-3">
-                            <div className="col-4">
-                                <label className="form-label small text-muted">Шт.</label>
-                                <input type="number" step="1" min="0" className="form-control px-2" placeholder="..."
-                                    value={formData.quantity}
-                                    onChange={e => setFormData({ ...formData, quantity: e.target.value })}
-                                />
-                            </div>
-                        </div>
-                        <button type="submit" className={`btn w-100 ${editingProduct ? 'btn-warning text-white' : 'btn-premium'}`}>
-                            {editingProduct ? 'Сохранить изменения' : 'Добавить'}
-                        </button>
-                    </form>
-                </div>
+                <ProductForm
+                    formData={formData}
+                    setFormData={setFormData}
+                    categories={categories}
+                    shops={shops}
+                    editingProduct={editingProduct}
+                    getShopCurrencyById={getShopCurrencyById}
+                    openCategoryEditor={openCategoryEditor}
+                    handleSubmit={handleSubmit}
+                    resetForm={resetForm}
+                />
             </div>
 
             {/* Product List */}
@@ -458,65 +358,30 @@ const ProductsPage = () => {
                 </div>
 
                 <div className="d-flex flex-column gap-3">
-                    {filteredProducts.map(p => (
-                        <div
-                            key={p.id}
-                            className="glass-card p-3 d-flex justify-content-between align-items-center"
-                            onClick={() => handleEdit(p)}
-                            style={{ cursor: 'pointer', transition: 'transform 0.2s' }}
-                            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.01)'}
-                            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                        >
-                            <div>
-                                <h6 className="mb-1 fw-bold">
-                                    {p.name}
-                                    <span className={`badge ms-2 ${getCategoryColor(p.category || 'продукты')}`} style={{ fontSize: '0.7em' }}>
-                                        {p.category || 'продукты'}
-                                    </span>
-                                </h6>
-                                <div className="small text-muted">
-                                    <span className="badge bg-light text-dark border me-2">
-                                        {p.shop ? p.shop.name : 'Без магазина'}
-                                    </span>
-                                    {p.weight && (
-                                        <span className="me-2 text-secondary">
-                                            {p.weight >= 1000 ? `${p.weight / 1000} кг/л` : `${p.weight} г/мл`}
-                                        </span>
-                                    )}
-                                    {p.calories && <span className="text-secondary me-2">{p.calories} ккал</span>}
-                                    {(p.proteins || p.fats || p.carbs) && (
-                                        <div className="d-inline-block text-muted" style={{ fontSize: '0.8em' }}>
-                                            Б: {p.proteins || '-'} / Ж: {p.fats || '-'} / У: {p.carbs || '-'}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                            <div className="d-flex align-items-center gap-2">
-                                <span className="fs-5 fw-bold text-primary me-3">
-                                    {p.price.toFixed(2)} {getProductCurrency(p)}
-                                </span>
-                                <button
-                                    className="btn btn-outline-info btn-sm rounded-circle me-1"
-                                    onClick={(e) => handleViewHistory(e, p)}
-                                    title="История цен"
-                                >
-                                    <i className="bi bi-clock-history"></i>
-                                </button>
-
-                                <button
-                                    className="btn btn-outline-danger btn-sm rounded-circle"
-                                    onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }}
-                                    title="Удалить"
-                                >
-                                    <i className="bi bi-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                    {filteredProducts.length === 0 && (
+                    {isLoading ? (
                         <div className="text-center text-muted py-5">
-                            Товары не найдены
+                            <div className="spinner-border mb-3" role="status"></div>
+                            <div>Загрузка товаров...</div>
                         </div>
+                    ) : (
+                        <>
+                            {filteredProducts.map(p => (
+                                <ProductCard
+                                    key={p.id}
+                                    product={p}
+                                    getCategoryColor={getCategoryColor}
+                                    getProductCurrency={getProductCurrency}
+                                    handleEdit={handleEdit}
+                                    handleViewHistory={handleViewHistory}
+                                    handleDelete={handleDelete}
+                                />
+                            ))}
+                            {filteredProducts.length === 0 && (
+                                <div className="text-center text-muted py-5">
+                                    Товары не найдены
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
             </div>

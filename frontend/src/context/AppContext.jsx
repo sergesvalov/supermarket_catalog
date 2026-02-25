@@ -7,14 +7,12 @@ const AppContext = createContext();
 export const AppProvider = ({ children }) => {
     const queryClient = useQueryClient();
 
-    const { data: productsRes = { items: [] }, isLoading: isProductsLoading } = useQuery({ queryKey: ['products'], queryFn: api.products.list });
     const { data: shopsRes = { items: [] }, isLoading: isShopsLoading } = useQuery({ queryKey: ['shops'], queryFn: api.shops.list });
     const { data: categories = [], isLoading: isCategoriesLoading } = useQuery({ queryKey: ['categories'], queryFn: api.categories.list });
     const { data: lists = [], isLoading: isListsLoading } = useQuery({ queryKey: ['lists'], queryFn: () => api.lists.getAll() });
     const { data: adminConfig = null, isLoading: isAdminLoading } = useQuery({ queryKey: ['adminConfig'], queryFn: () => api.admin.getConfig() });
 
     // Handle pagination objects by extracting items if they exist
-    const products = productsRes.items || productsRes;
     const shops = shopsRes.items || shopsRes;
 
     const [currency, setCurrency] = useState('EUR');
@@ -36,7 +34,7 @@ export const AppProvider = ({ children }) => {
     };
     const currencySymbol = getCurrencySymbol(currency);
 
-    const loading = isProductsLoading || isShopsLoading || isCategoriesLoading || isListsLoading || isAdminLoading;
+    const loading = isShopsLoading || isCategoriesLoading || isListsLoading || isAdminLoading;
 
     const refreshProducts = () => queryClient.invalidateQueries({ queryKey: ['products'] });
     const refreshShops = () => queryClient.invalidateQueries({ queryKey: ['shops'] });
@@ -44,7 +42,6 @@ export const AppProvider = ({ children }) => {
     const refreshLists = () => queryClient.invalidateQueries({ queryKey: ['lists'] });
 
     const value = {
-        products,
         shops,
         categories,
         lists,

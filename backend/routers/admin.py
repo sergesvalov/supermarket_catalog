@@ -4,11 +4,12 @@ from sqlmodel import select
 from database import get_session
 from models import AppConfig
 from services import admin_service
+from async_lru import alru_cache
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
-@router.get("/config", response_model=AppConfig)
-async def get_config(session: AsyncSession = Depends(get_session)):
+@alru_cache(maxsize=1)
+async def _get_app_config_cached(session: AsyncSession):
     result = await session.execute(select(AppConfig))
     config = result.scalars().first()
     if not config:
@@ -17,6 +18,10 @@ async def get_config(session: AsyncSession = Depends(get_session)):
         await session.commit()
         await session.refresh(config)
     return config
+
+@router.get("/config", response_model=AppConfig)
+async def get_config(session: AsyncSession = Depends(get_session)):
+    return await _get_app_config_cached(session)
 
 @router.post("/config", response_model=AppConfig)
 async def update_config(config_in: AppConfig, session: AsyncSession = Depends(get_session)):
@@ -32,6 +37,7 @@ async def update_config(config_in: AppConfig, session: AsyncSession = Depends(ge
     session.add(config)
     await session.commit()
     await session.refresh(config)
+    _get_app_config_cached.cache_clear()
     return config
 
 @router.post("/export")

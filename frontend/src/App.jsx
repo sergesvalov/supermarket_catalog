@@ -1,9 +1,10 @@
-import { BrowserRouter as Router, Routes, Route, NavLink, Navigate } from 'react-router-dom'
-import ProductsPage from './components/ProductsPage'
-import ListsPage from './components/ListsPage'
-import ShopsPage from './components/ShopsPage'
-import AdminPage from './components/AdminPage'
-import ReportsPage from './components/ReportsPage'
+import React, { Suspense, lazy } from 'react';
+import { BrowserRouter as Router, Routes, Route, NavLink, Navigate } from 'react-router-dom';
+const ProductsPage = lazy(() => import('./components/ProductsPage'));
+const ListsPage = lazy(() => import('./components/ListsPage'));
+const ShopsPage = lazy(() => import('./components/ShopsPage'));
+const AdminPage = lazy(() => import('./components/AdminPage'));
+const ReportsPage = lazy(() => import('./components/ReportsPage'));
 import { AppProvider } from './context/AppContext'
 
 function App() {
@@ -44,14 +45,16 @@ function App() {
                     </div>
 
                     <div className="tab-content">
-                        <Routes>
-                            <Route path="/" element={<Navigate to="/products" replace />} />
-                            <Route path="/products" element={<ProductsPage />} />
-                            <Route path="/lists" element={<ListsPage />} />
-                            <Route path="/shops" element={<ShopsPage />} />
-                            <Route path="/reports" element={<ReportsPage />} />
-                            <Route path="/admin" element={<AdminPage />} />
-                        </Routes>
+                        <Suspense fallback={<div className="text-center p-5"><div className="spinner-border text-light" role="status"></div></div>}>
+                            <Routes>
+                                <Route path="/" element={<Navigate to="/products" replace />} />
+                                <Route path="/products" element={<ProductsPage />} />
+                                <Route path="/lists" element={<ListsPage />} />
+                                <Route path="/shops" element={<ShopsPage />} />
+                                <Route path="/reports" element={<ReportsPage />} />
+                                <Route path="/admin" element={<AdminPage />} />
+                            </Routes>
+                        </Suspense>
                     </div>
                 </div>
             </Router>

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
+from typing import List, Optional
 from database import get_session
 from models import ProductCreate, ProductResponse
 from services import product_service
@@ -9,8 +9,15 @@ from fastapi_pagination import Page
 router = APIRouter(prefix="/products", tags=["Products"])
 
 @router.get("", response_model=Page[ProductResponse])
-async def get_products(session: AsyncSession = Depends(get_session)):
-    return await product_service.get_all_products(session)
+async def get_products(
+    search: Optional[str] = None,
+    shop_id: Optional[int] = None,
+    category: Optional[str] = None,
+    sort_by: Optional[str] = 'date',
+    session: AsyncSession = Depends(get_session)
+):
+    return await product_service.get_all_products(session, search, shop_id, category, sort_by)
+
 @router.post("", response_model=ProductResponse)
 async def create_product(product_in: ProductCreate, session: AsyncSession = Depends(get_session)):
     return await product_service.create_product(product_in, session)

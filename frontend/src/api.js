@@ -51,7 +51,16 @@ async function request(endpoint, method = 'GET', data = null) {
 
 export const api = {
     products: {
-        list: () => request('/products'),
+        list: (params = {}) => {
+            const qs = new URLSearchParams();
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined && value !== null && value !== '') {
+                    qs.append(key, value);
+                }
+            });
+            const queryString = qs.toString() ? `?${qs.toString()}` : '';
+            return request(`/products${queryString}`);
+        },
         create: (data) => request('/products', 'POST', data),
         update: (id, data) => request(`/products/${id}`, 'PUT', data),
         delete: (id) => request(`/products/${id}`, 'DELETE')

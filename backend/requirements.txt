@@ -8,3 +8,4 @@ aiosqlite
 alembic
 pydantic-settings
 fastapi-pagination
+async-lru

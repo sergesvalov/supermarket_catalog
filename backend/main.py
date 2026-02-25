@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from alembic.config import Config
 from alembic import command
 
@@ -25,7 +26,6 @@ async def lifespan(app: FastAPI):
 app = FastAPI(root_path="/api", lifespan=lifespan)
 
 # Allow CORS for frontend
-# Allow CORS for frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS,
@@ -33,6 +33,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add GZip compression for responses
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # Register global error handler
 app.add_exception_handler(AppError, app_error_handler)
