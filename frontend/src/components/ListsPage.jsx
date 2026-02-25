@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '../api';
 
 const ListsPage = () => {
-    const { lists, products, shops, refreshLists, currency, getCurrencySymbol, currencySymbol } = useAppContext();
+    const { lists, shops, refreshLists, currency, getCurrencySymbol, currencySymbol } = useAppContext();
+    const { data: productsData = { items: [] } } = useQuery({ queryKey: ['products'], queryFn: api.products.list });
+    const products = productsData.items || productsData;
 
     // Helper: get currency symbol for a product
     const getProductCurrency = (product) => {
