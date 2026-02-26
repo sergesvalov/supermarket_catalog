@@ -12,7 +12,7 @@ const ProductForm = ({
     resetForm
 }) => {
     return (
-        <div className="glass-card p-4 sticky-top" style={{ top: '20px' }}>
+        <div className="glass-card p-4 sticky-top overflow-y-auto" style={{ top: '20px', maxHeight: 'calc(100vh - 40px)' }}>
             <div className="d-flex justify-content-between align-items-center mb-3">
                 <h5 className="fw-bold mb-0">
                     {editingProduct ? '✏️ Редактировать' : '✨ Добавить товар'}
