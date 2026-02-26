@@ -12,8 +12,6 @@ function App() {
         <AppProvider>
             <Router>
                 <div className="container py-5">
-                    <h2 className="mb-4 fw-bold text-white text-shadow-sm">🛒 Supermarket Catalog</h2>
-
                     <div className="glass-card p-2 mb-4 d-inline-block">
                         <ul className="nav nav-pills" role="tablist">
                             <li className="nav-item">
