@@ -311,7 +311,7 @@ const ProductsPage = () => {
 
 
             {/* Add/Edit Product Form */}
-            <div className="col-lg-4 col-md-5 mb-4">
+            <div className="col-lg-5 col-md-6 mb-4">
                 <ProductForm
                     formData={formData}
                     setFormData={setFormData}
@@ -326,7 +326,7 @@ const ProductsPage = () => {
             </div>
 
             {/* Product List */}
-            <div className="col-lg-8 col-md-7">
+            <div className="col-lg-7 col-md-6">
                 <div className="d-flex justify-content-between align-items-center gap-2 mb-3">
                     <input
                         type="text"
